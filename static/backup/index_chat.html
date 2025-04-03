@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+    <title>Виртуальный консультант</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: white;
+            font-family: 'Inter', sans-serif;
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+        }
+        header {
+            padding: 20px;
+            font-size: 1.8rem;
+            font-weight: bold;
+            text-align: center;
+        }
+        #chat {
+            width: 90%;
+            max-width: 900px;
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+        }
+        .message {
+            padding: 10px 15px;
+            border-radius: 15px;
+            max-width: 70%;
+            margin: 5px 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .user {
+            background-color: #007bff;
+            color: white;
+            align-self: flex-end;
+        }
+        .bot {
+            background-color: #1e1e1e;
+            color: #a2f5a2;
+            align-self: flex-start;
+        }
+        /* Добавляем стили для абзацев и списков */
+        .bot p {
+            margin: 0 0 10px 0;
+        }
+        .bot p:last-child {
+            margin-bottom: 0;
+        }
+        .bot ul, .bot ol {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+        .bot li {
+            margin-bottom: 3px;
+        }
+        footer {
+            width: 90%;
+            max-width: 900px;
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input[type=text] {
+            flex: 1;
+            padding: 10px;
+            font-size: 1rem;
+            border-radius: 8px;
+            border: none;
+            background: #1e1e1e;
+            color: white;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #28a745;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .logo-small {
+            height: 80px;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            opacity: 0.7;
+        }
+        details {
+            margin-top: 10px;
+            background-color: #222;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <header>💬 Виртуальный консультант</header>
+    <div id="chat"></div>
+    <footer>
+        <input type="text" id="question" placeholder="Задайте вопрос...">
+        <button id="sendButton">Отправить</button>
+    </footer>
+    <p style="font-size: 12px; color: #ccc; text-align: center">Последняя пересборка базы: {{last_updated}}</p>
+    <img src="/static/logo.png" class="logo-small" alt="Bot Logo">
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const chat = document.getElementById('chat');
+            const sendButton = document.getElementById('sendButton');
+            const questionInput = document.getElementById('question');
+
+            // Новая функция для форматирования текста ответа
+            function formatBotResponse(text) {
+                // Удаляем все HTML теги, кроме <br> для совместимости
+                text = text.replace(/<(?!br\s*\/?)[^>]+>/g, '');
+                
+                // Заменяем одиночные <br> на временный маркер
+                text = text.replace(/<br\s*\/?>/g, '§BREAK§');
+                
+                // Находим двойные переносы строк и заменяем их на маркеры конца/начала абзаца
+                text = text.replace(/§BREAK§§BREAK§/g, '§PARAGRAPH§');
+                
+                // Заменяем оставшиеся временные маркеры на <br>
+                text = text.replace(/§BREAK§/g, '<br>');
+                
+                // Разбиваем на абзацы
+                const paragraphs = text.split('§PARAGRAPH§');
+                
+                // Форматируем каждый абзац
+                const formattedParagraphs = paragraphs.map(paragraph => {
+                    // Форматируем маркированные списки
+                    paragraph = paragraph.replace(/^([-•])\s+(.+?)(<br>|$)/gm, '<li>$2</li>');
+                    paragraph = paragraph.replace(/<br>([-•])\s+(.+?)(<br>|$)/g, '<br><li>$2</li>');
+                    
+                    // Форматируем нумерованные списки
+                    paragraph = paragraph.replace(/^(\d+)[.)][\s]+(.+?)(<br>|$)/gm, '<li>$2</li>');
+                    paragraph = paragraph.replace(/<br>(\d+)[.)][\s]+(.+?)(<br>|$)/g, '<br><li>$2</li>');
+                    
+                    // Если в абзаце есть элементы списка, оборачиваем их в <ul>
+                    if (paragraph.includes('<li>')) {
+                        paragraph = '<ul>' + paragraph + '</ul>';
+                        // Удаляем лишние br внутри списков
+                        paragraph = paragraph.replace(/<li>(.*?)<br><\/li>/g, '<li>$1</li>');
+                    }
+                    
+                    // Обрабатываем выделение текста
+                    paragraph = paragraph.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    paragraph = paragraph.replace(/\*(.*?)\*/g, '<em>$1</em>');
+                    
+                    return paragraph;
+                });
+                
+                // Оборачиваем каждый абзац в <p> и объединяем все вместе
+                return formattedParagraphs.map(p => `<p>${p}</p>`).join('');
+            }
+
+            function appendMessage(text, sender = 'bot') {
+                const msg = document.createElement('div');
+                msg.className = `message ${sender}`;
+                chat.appendChild(msg);
+
+                // Применяем форматирование только к ответам бота
+                if (sender === 'bot') {
+                    // Извлекаем часть с "Бот: " и форматируем только ответ
+                    if (text.startsWith('Бот: ')) {
+                        const botPrefix = 'Бот: ';
+                        const responseText = text.substring(botPrefix.length);
+                        const formattedText = formatBotResponse(responseText);
+                        msg.innerHTML = botPrefix + formattedText;
+                    } else {
+                        // Если текст не начинается с префикса "Бот: ", форматируем весь текст
+                        msg.innerHTML = formatBotResponse(text);
+                    }
+                } else {
+                    // Для сообщений пользователя просто добавляем текст
+                    msg.textContent = text;
+                }
+
+                chat.scrollTop = chat.scrollHeight;
+            }
+
+            async function ask() {
+                const q = questionInput.value;
+                if (!q.trim()) return;
+
+                appendMessage(q, 'user');
+                questionInput.value = '';
+
+                const botMsg = document.createElement('div');
+                botMsg.className = 'message bot';
+                botMsg.innerHTML = '<b>Бот:</b> <span id="typing">Думаю...</span>';
+                chat.appendChild(botMsg);
+                chat.scrollTop = chat.scrollHeight;
+
+                try {
+                    const res = await fetch('/ask', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'q=' + encodeURIComponent(q)
+                    });
+
+                    const data = await res.json();
+                    botMsg.remove(); // Удаляем сообщение "Думаю..."
+                    
+                    const text = data.answer || '⚠️ Ошибка: ответ не получен.';
+                    appendMessage('Бот: ' + text, 'bot');
+
+                    if (data.sources) {
+                        const sources = document.createElement('div');
+                        sources.innerHTML = '<br><b>🔎 Источники:</b><br>' + data.sources;
+                        sources.className = 'message bot';
+                        chat.appendChild(sources);
+                    }
+                } catch (error) {
+                    botMsg.remove();
+                    appendMessage('Бот: ⚠️ Произошла ошибка при обработке запроса. Попробуйте позже.', 'bot');
+                    console.error('Error:', error);
+                }
+                
+                chat.scrollTop = chat.scrollHeight;
+            }
+
+            sendButton.addEventListener('click', ask);
+            questionInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') ask();
+            });
+        });
+    </script>
+</body>
+</html>
