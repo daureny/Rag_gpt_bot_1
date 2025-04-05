@@ -1,30 +1,205 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
   <component name="ChangeListManager">
-    <list default="true" id="08b4c360-404a-415b-b1f8-6d1a0f42abdd" name="Changes" comment="" />
+    <list default="true" id="08b4c360-404a-415b-b1f8-6d1a0f42abdd" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/chatbot-proxy.php" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-1-presentation-of-financial-statements-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-10-events-after-the-reporting-period-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-11-construction-contracts-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-12-income-taxes-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-16-property-plant-and-equipment-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-17-leases-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-18-revenue-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-19-employee-benefits-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-2-inventories-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-20-accounting-for-government-grants-and-disclosure-of-government-assistance-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-21-the-effects-of-changes-in-foreign-exchange-rates-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-23-borrowing-costs-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-24-related-party-disclosures-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-26-accounting-and-reporting-by-retirement-benefit-plans-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-27-separate-financial-statements-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-28-investments-in-associates-and-joint-ventures-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-29-financial-reporting-in-hyperinflationary-economies-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-32-financial-instruments-presentation-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-33-earnings-per-share-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-34-interim-financial-reporting-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-36-impairment-of-assets-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-37-provisions-contingent-liabilities-and-contingent-assets-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-38-intangible-assets-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-39-financial-instruments-recognition-and-measurement-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-40-investment-property-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-41-agriculture-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-7-statement-of-cash-flows-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ias-8-accounting-policies-changes-in-accounting-estimates-and-errors-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifric-1-changes-in-existing-decommissioning-restoration-and-similar-liabilities-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifric-10-interim-financial-reporting-and-impairment-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifric-12-service-concession-arrangements-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifric-13-customer-loyalty-programmes-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifric-14-ias-19-the-limit-on-a-defined-benefit-asset-minimum-funding-requirements-and-their-interaction-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifric-15-agreements-for-the-construction-of-real-estate-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifric-16-hedges-of-a-net-investment-in-a-foreign-operation-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifric-17-distributions-of-non-cash-assets-to-owners-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifric-18-transfers-of-assets-from-customers-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifric-19-extinguishing-financial-liabilities-with-equity-instruments-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifric-2-members-shares-in-co-operative-entities-and-similar-instruments-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifric-20-stripping-costs-in-the-production-phase-of-a-surface-mine-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifric-4-determining-whether-an-arrangement-contains-a-lease-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifric-5-rights-to-interests-arising-from-decommissioning-restoration-and-environmental-rehabilitation-funds-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifric-6-liabilities-arising-from-participating-in-a-specific-market-waste-electrical-and-electronic-equipment-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifric-7-applying-the-restatement-approach-under-ias-29-financial-reporting-in-hyperinflationary-economies-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifrs-1-first-time-adoption-of-international-financial-reporting-standards-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifrs-10-consolidated-financial-statements-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifrs-11-joint-arrangements-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifrs-12-disclosure-of-interests-in-other-entities-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifrs-13-fair-value-measurement-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifrs-2-share-based-payment-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifrs-3-business-combinations-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifrs-4-insurance-contracts-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifrs-5-non-current-assets-held-for-sale-and-discontinued-operations-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifrs-6-exploration-for-and-evaluation-of-mineral-resources-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifrs-7-financial-instruments-disclosures-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifrs-8-operating-segments-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/ifrs-9-financial-instruments-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/sic-10-government-assistance-no-specific-relation-to-operating-activities-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/sic-15-operating-leases-incentives-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/sic-25-income-taxes-changes-in-the-tax-status-of-an-entity-or-its-shareholders-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/sic-27-evaluating-the-substance-of-transactions-involving-the-legal-form-of-a-lease-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/sic-29-service-concession-arrangements-disclosures-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/sic-31-revenue-barter-transactions-involving-advertising-services-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/sic-32-intangible-assets-web-site-costs-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/sic-7-introduction-of-the-euro-ru.pdf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/docs/Правила по провизиям_269.docx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/old_main.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/static/old_chatbot-proxy.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.env" beforeDir="false" afterPath="$PROJECT_DIR$/.env" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/New_logo_transparent_cropped.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/combined.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/faiss_index/index.faiss" beforeDir="false" afterPath="$PROJECT_DIR$/faiss_index/index.faiss" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/faiss_index/index.pkl" beforeDir="false" afterPath="$PROJECT_DIR$/faiss_index/index.pkl" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/last_updated.txt" beforeDir="false" afterPath="$PROJECT_DIR$/last_updated.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rebuild_log.txt" beforeDir="false" afterPath="$PROJECT_DIR$/rebuild_log.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/chatbot-proxy.php" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/for_website.html" beforeDir="false" afterPath="$PROJECT_DIR$/static/for_website.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/index_chat.html" beforeDir="false" afterPath="$PROJECT_DIR$/static/index_chat.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/index_chat_old.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/updated-index-chat-html.html" beforeDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="HTML File" />
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 4
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "daureny"
+  }
 }]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/daureny/Rag_gpt_bot.git",
+    "accountId": "1c8cda0d-1d57-4011-bc8f-3d093e743a13"
+  }
+}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 4
+}</component>
   <component name="ProjectId" id="2v7Bf8Y5kVV15iynmZePlzGhHyd" />
-  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "master"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
+    &quot;DefaultHtmlFileTemplate&quot;: &quot;HTML File&quot;,
+    &quot;Python.Run RAG Bot.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;
   }
-}]]></component>
+}</component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\User\PycharmProjects\rag_gpt_bot" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Python.main">
+    <configuration name="Run RAG Bot" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="rag_gpt_bot" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="uvicorn" />
+      <option name="PARAMETERS" value="main:app --reload" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="true" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="main" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="rag_gpt_bot" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="Python.main" />
+      <item itemvalue="Python.Run RAG Bot" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.main" />
+        <item itemvalue="Python.Run RAG Bot" />
+      </list>
+    </recent_temporary>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -42,5 +217,8 @@
       <updated>1743486332691</updated>
     </task>
     <servers />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
   </component>
 </project>

@@ -25,3 +25,438 @@
 ✅ Загружен файл: Рейтинги.rus.docx
 ✅ Загружен файл: Требования к помещениям банков.rus.docx
 
+=== Пересборка от 2025-04-01 16:36:29 ===
+✅ Загружен файл: combined.txt
+✅ Загружен файл: АППК.rus.docx
+✅ Загружен файл: Влияние на др лица.rus.docx
+✅ Загружен файл: Закон о банках.docx
+✅ Загружен файл: Закон об АО.docx
+✅ Загружен файл: ЗН о разрешениях.docx
+✅ Загружен файл: ЗН о регулировании ФР.rus.docx
+✅ Загружен файл: ЗН о РЦБ.rus.docx
+✅ Загружен файл: ЗН о ТОО.rus.docx
+✅ Загружен файл: ЗН об МФО.rus.docx
+✅ Загружен файл: Инфо безопасность банков.rus.docx
+✅ Загружен файл: Оффшоры 8.rus.docx
+✅ Загружен файл: Правида разрешение дочки.rus.docx
+✅ Загружен файл: Правила 189.docx
+✅ Загружен файл: Правила автоматизации бухучета.rus.docx
+✅ Загружен файл: Правила конвертации 93.rus.docx
+✅ Загружен файл: Правила пруднормативы 170.rus.docx
+✅ Загружен файл: Правила разрешение откр банка 36.rus.docx
+✅ Загружен файл: Правила разрешение рукраб 81.rus.docx
+✅ Загружен файл: Правила риски 188.rus.docx
+✅ Загружен файл: Правила рукработники.rus.docx
+✅ Загружен файл: Правила согласия КУ 67.rus.docx
+✅ Загружен файл: Предприним кодекс.rus.docx
+✅ Загружен файл: Пруды Банк конгломерат.rus.docx
+✅ Загружен файл: Рейтинги.rus.docx
+✅ Загружен файл: Требования к помещениям банков.rus.docx
+
+=== Пересборка от 2025-04-01 16:54:26 ===
+✅ Загружен файл: АППК.rus.docx
+✅ Загружен файл: Влияние на др лица.rus.docx
+✅ Загружен файл: Закон о банках.docx
+✅ Загружен файл: Закон об АО.docx
+✅ Загружен файл: ЗН о разрешениях.docx
+✅ Загружен файл: ЗН о регулировании ФР.rus.docx
+✅ Загружен файл: ЗН о РЦБ.rus.docx
+✅ Загружен файл: ЗН о ТОО.rus.docx
+✅ Загружен файл: ЗН об МФО.rus.docx
+✅ Загружен файл: Инфо безопасность банков.rus.docx
+✅ Загружен файл: Оффшоры 8.rus.docx
+✅ Загружен файл: Правида разрешение дочки.rus.docx
+✅ Загружен файл: Правила 189.docx
+✅ Загружен файл: Правила автоматизации бухучета.rus.docx
+✅ Загружен файл: Правила конвертации 93.rus.docx
+✅ Загружен файл: Правила пруднормативы 170.rus.docx
+✅ Загружен файл: Правила разрешение откр банка 36.rus.docx
+✅ Загружен файл: Правила разрешение рукраб 81.rus.docx
+✅ Загружен файл: Правила риски 188.rus.docx
+✅ Загружен файл: Правила рукработники.rus.docx
+✅ Загружен файл: Правила согласия КУ 67.rus.docx
+✅ Загружен файл: Предприним кодекс.rus.docx
+✅ Загружен файл: Пруды Банк конгломерат.rus.docx
+✅ Загружен файл: Рейтинги.rus.docx
+✅ Загружен файл: Требования к помещениям банков.rus.docx
+
+=== Ошибка запроса от 2025-04-01 19:06:41 ===
+Вопрос: что такое риск аппетит
+Ошибка: Ошибка при обработке запроса: Got multiple output keys: dict_keys(['answer', 'source_documents']), cannot determine which to store in memory. Please set the 'output_key' explicitly.
+
+=== Ошибка запроса от 2025-04-01 19:07:01 ===
+Вопрос: почему ошибка?
+Ошибка: Ошибка при обработке запроса: Got multiple output keys: dict_keys(['answer', 'source_documents']), cannot determine which to store in memory. Please set the 'output_key' explicitly.
+
+=== Пересборка от 2025-04-03 13:14:47 ===
+❌ Ошибка при обработке ias-1-presentation-of-financial-statements-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-10-events-after-the-reporting-period-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-11-construction-contracts-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-12-income-taxes-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-16-property-plant-and-equipment-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-17-leases-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-18-revenue-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-19-employee-benefits-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-2-inventories-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-20-accounting-for-government-grants-and-disclosure-of-government-assistance-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-21-the-effects-of-changes-in-foreign-exchange-rates-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-23-borrowing-costs-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-24-related-party-disclosures-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-26-accounting-and-reporting-by-retirement-benefit-plans-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-27-separate-financial-statements-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-28-investments-in-associates-and-joint-ventures-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-29-financial-reporting-in-hyperinflationary-economies-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-32-financial-instruments-presentation-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-33-earnings-per-share-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-34-interim-financial-reporting-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-36-impairment-of-assets-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-37-provisions-contingent-liabilities-and-contingent-assets-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-38-intangible-assets-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-39-financial-instruments-recognition-and-measurement-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-40-investment-property-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-41-agriculture-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-7-statement-of-cash-flows-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-8-accounting-policies-changes-in-accounting-estimates-and-errors-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-1-changes-in-existing-decommissioning-restoration-and-similar-liabilities-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-10-interim-financial-reporting-and-impairment-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-12-service-concession-arrangements-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-13-customer-loyalty-programmes-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-14-ias-19-the-limit-on-a-defined-benefit-asset-minimum-funding-requirements-and-their-interaction-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-15-agreements-for-the-construction-of-real-estate-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-16-hedges-of-a-net-investment-in-a-foreign-operation-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-17-distributions-of-non-cash-assets-to-owners-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-18-transfers-of-assets-from-customers-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-19-extinguishing-financial-liabilities-with-equity-instruments-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-2-members-shares-in-co-operative-entities-and-similar-instruments-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-20-stripping-costs-in-the-production-phase-of-a-surface-mine-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-4-determining-whether-an-arrangement-contains-a-lease-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-5-rights-to-interests-arising-from-decommissioning-restoration-and-environmental-rehabilitation-funds-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-6-liabilities-arising-from-participating-in-a-specific-market-waste-electrical-and-electronic-equipment-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-7-applying-the-restatement-approach-under-ias-29-financial-reporting-in-hyperinflationary-economies-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-1-first-time-adoption-of-international-financial-reporting-standards-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-10-consolidated-financial-statements-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-11-joint-arrangements-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-12-disclosure-of-interests-in-other-entities-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-13-fair-value-measurement-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-2-share-based-payment-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-3-business-combinations-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-4-insurance-contracts-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-5-non-current-assets-held-for-sale-and-discontinued-operations-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-6-exploration-for-and-evaluation-of-mineral-resources-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-7-financial-instruments-disclosures-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-8-operating-segments-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-9-financial-instruments-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-10-government-assistance-no-specific-relation-to-operating-activities-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-15-operating-leases-incentives-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-25-income-taxes-changes-in-the-tax-status-of-an-entity-or-its-shareholders-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-27-evaluating-the-substance-of-transactions-involving-the-legal-form-of-a-lease-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-29-service-concession-arrangements-disclosures-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-31-revenue-barter-transactions-involving-advertising-services-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-32-intangible-assets-web-site-costs-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-7-introduction-of-the-euro-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+✅ Загружен файл: АППК.rus.docx
+✅ Загружен файл: Влияние на др лица.rus.docx
+✅ Загружен файл: Закон о банках.docx
+✅ Загружен файл: Закон об АО.docx
+✅ Загружен файл: ЗН о разрешениях.docx
+✅ Загружен файл: ЗН о регулировании ФР.rus.docx
+✅ Загружен файл: ЗН о РЦБ.rus.docx
+✅ Загружен файл: ЗН о ТОО.rus.docx
+✅ Загружен файл: ЗН об МФО.rus.docx
+✅ Загружен файл: Инфо безопасность банков.rus.docx
+✅ Загружен файл: Оффшоры 8.rus.docx
+✅ Загружен файл: Правида разрешение дочки.rus.docx
+✅ Загружен файл: Правила 189.docx
+✅ Загружен файл: Правила автоматизации бухучета.rus.docx
+✅ Загружен файл: Правила конвертации 93.rus.docx
+✅ Загружен файл: Правила по провизиям_269.docx
+✅ Загружен файл: Правила пруднормативы 170.rus.docx
+✅ Загружен файл: Правила разрешение откр банка 36.rus.docx
+✅ Загружен файл: Правила разрешение рукраб 81.rus.docx
+✅ Загружен файл: Правила риски 188.rus.docx
+✅ Загружен файл: Правила рукработники.rus.docx
+✅ Загружен файл: Правила согласия КУ 67.rus.docx
+✅ Загружен файл: Предприним кодекс.rus.docx
+✅ Загружен файл: Пруды Банк конгломерат.rus.docx
+✅ Загружен файл: Рейтинги.rus.docx
+✅ Загружен файл: Требования к помещениям банков.rus.docx
+
+=== Пересборка от 2025-04-03 14:36:26 ===
+❌ Ошибка при обработке ias-1-presentation-of-financial-statements-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-10-events-after-the-reporting-period-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-11-construction-contracts-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-12-income-taxes-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-16-property-plant-and-equipment-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-17-leases-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-18-revenue-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-19-employee-benefits-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-2-inventories-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-20-accounting-for-government-grants-and-disclosure-of-government-assistance-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-21-the-effects-of-changes-in-foreign-exchange-rates-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-23-borrowing-costs-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-24-related-party-disclosures-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-26-accounting-and-reporting-by-retirement-benefit-plans-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-27-separate-financial-statements-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-28-investments-in-associates-and-joint-ventures-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-29-financial-reporting-in-hyperinflationary-economies-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-32-financial-instruments-presentation-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-33-earnings-per-share-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-34-interim-financial-reporting-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-36-impairment-of-assets-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-37-provisions-contingent-liabilities-and-contingent-assets-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-38-intangible-assets-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-39-financial-instruments-recognition-and-measurement-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-40-investment-property-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-41-agriculture-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-7-statement-of-cash-flows-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-8-accounting-policies-changes-in-accounting-estimates-and-errors-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-1-changes-in-existing-decommissioning-restoration-and-similar-liabilities-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-10-interim-financial-reporting-and-impairment-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-12-service-concession-arrangements-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-13-customer-loyalty-programmes-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-14-ias-19-the-limit-on-a-defined-benefit-asset-minimum-funding-requirements-and-their-interaction-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-15-agreements-for-the-construction-of-real-estate-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-16-hedges-of-a-net-investment-in-a-foreign-operation-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-17-distributions-of-non-cash-assets-to-owners-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-18-transfers-of-assets-from-customers-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-19-extinguishing-financial-liabilities-with-equity-instruments-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-2-members-shares-in-co-operative-entities-and-similar-instruments-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-20-stripping-costs-in-the-production-phase-of-a-surface-mine-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-4-determining-whether-an-arrangement-contains-a-lease-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-5-rights-to-interests-arising-from-decommissioning-restoration-and-environmental-rehabilitation-funds-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-6-liabilities-arising-from-participating-in-a-specific-market-waste-electrical-and-electronic-equipment-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-7-applying-the-restatement-approach-under-ias-29-financial-reporting-in-hyperinflationary-economies-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-1-first-time-adoption-of-international-financial-reporting-standards-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-10-consolidated-financial-statements-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-11-joint-arrangements-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-12-disclosure-of-interests-in-other-entities-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-13-fair-value-measurement-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-2-share-based-payment-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-3-business-combinations-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-4-insurance-contracts-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-5-non-current-assets-held-for-sale-and-discontinued-operations-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-6-exploration-for-and-evaluation-of-mineral-resources-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-7-financial-instruments-disclosures-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-8-operating-segments-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-9-financial-instruments-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-10-government-assistance-no-specific-relation-to-operating-activities-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-15-operating-leases-incentives-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-25-income-taxes-changes-in-the-tax-status-of-an-entity-or-its-shareholders-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-27-evaluating-the-substance-of-transactions-involving-the-legal-form-of-a-lease-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-29-service-concession-arrangements-disclosures-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-31-revenue-barter-transactions-involving-advertising-services-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-32-intangible-assets-web-site-costs-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-7-introduction-of-the-euro-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+✅ Загружен файл: АППК.rus.docx
+✅ Загружен файл: Влияние на др лица.rus.docx
+✅ Загружен файл: Закон о банках.docx
+✅ Загружен файл: Закон об АО.docx
+✅ Загружен файл: ЗН о разрешениях.docx
+✅ Загружен файл: ЗН о регулировании ФР.rus.docx
+✅ Загружен файл: ЗН о РЦБ.rus.docx
+✅ Загружен файл: ЗН о ТОО.rus.docx
+✅ Загружен файл: ЗН об МФО.rus.docx
+✅ Загружен файл: Инфо безопасность банков.rus.docx
+✅ Загружен файл: Оффшоры 8.rus.docx
+✅ Загружен файл: Правида разрешение дочки.rus.docx
+✅ Загружен файл: Правила 189.docx
+✅ Загружен файл: Правила автоматизации бухучета.rus.docx
+✅ Загружен файл: Правила конвертации 93.rus.docx
+✅ Загружен файл: Правила по провизиям_269.docx
+✅ Загружен файл: Правила пруднормативы 170.rus.docx
+✅ Загружен файл: Правила разрешение откр банка 36.rus.docx
+✅ Загружен файл: Правила разрешение рукраб 81.rus.docx
+✅ Загружен файл: Правила риски 188.rus.docx
+✅ Загружен файл: Правила рукработники.rus.docx
+✅ Загружен файл: Правила согласия КУ 67.rus.docx
+✅ Загружен файл: Предприним кодекс.rus.docx
+✅ Загружен файл: Пруды Банк конгломерат.rus.docx
+✅ Загружен файл: Рейтинги.rus.docx
+✅ Загружен файл: Требования к помещениям банков.rus.docx
+
+=== Пересборка от 2025-04-03 19:07:40 ===
+❌ Ошибка при обработке ias-1-presentation-of-financial-statements-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-10-events-after-the-reporting-period-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-11-construction-contracts-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-12-income-taxes-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-16-property-plant-and-equipment-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-17-leases-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-18-revenue-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-19-employee-benefits-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-2-inventories-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-20-accounting-for-government-grants-and-disclosure-of-government-assistance-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-21-the-effects-of-changes-in-foreign-exchange-rates-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-23-borrowing-costs-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-24-related-party-disclosures-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-26-accounting-and-reporting-by-retirement-benefit-plans-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-27-separate-financial-statements-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-28-investments-in-associates-and-joint-ventures-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-29-financial-reporting-in-hyperinflationary-economies-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-32-financial-instruments-presentation-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-33-earnings-per-share-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-34-interim-financial-reporting-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-36-impairment-of-assets-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-37-provisions-contingent-liabilities-and-contingent-assets-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-38-intangible-assets-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-39-financial-instruments-recognition-and-measurement-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-40-investment-property-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-41-agriculture-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-7-statement-of-cash-flows-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ias-8-accounting-policies-changes-in-accounting-estimates-and-errors-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-1-changes-in-existing-decommissioning-restoration-and-similar-liabilities-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-10-interim-financial-reporting-and-impairment-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-12-service-concession-arrangements-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-13-customer-loyalty-programmes-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-14-ias-19-the-limit-on-a-defined-benefit-asset-minimum-funding-requirements-and-their-interaction-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-15-agreements-for-the-construction-of-real-estate-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-16-hedges-of-a-net-investment-in-a-foreign-operation-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-17-distributions-of-non-cash-assets-to-owners-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-18-transfers-of-assets-from-customers-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-19-extinguishing-financial-liabilities-with-equity-instruments-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-2-members-shares-in-co-operative-entities-and-similar-instruments-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-20-stripping-costs-in-the-production-phase-of-a-surface-mine-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-4-determining-whether-an-arrangement-contains-a-lease-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-5-rights-to-interests-arising-from-decommissioning-restoration-and-environmental-rehabilitation-funds-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-6-liabilities-arising-from-participating-in-a-specific-market-waste-electrical-and-electronic-equipment-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifric-7-applying-the-restatement-approach-under-ias-29-financial-reporting-in-hyperinflationary-economies-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-1-first-time-adoption-of-international-financial-reporting-standards-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-10-consolidated-financial-statements-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-11-joint-arrangements-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-12-disclosure-of-interests-in-other-entities-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-13-fair-value-measurement-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-2-share-based-payment-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-3-business-combinations-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-4-insurance-contracts-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-5-non-current-assets-held-for-sale-and-discontinued-operations-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-6-exploration-for-and-evaluation-of-mineral-resources-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-7-financial-instruments-disclosures-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-8-operating-segments-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке ifrs-9-financial-instruments-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-10-government-assistance-no-specific-relation-to-operating-activities-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-15-operating-leases-incentives-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-25-income-taxes-changes-in-the-tax-status-of-an-entity-or-its-shareholders-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-27-evaluating-the-substance-of-transactions-involving-the-legal-form-of-a-lease-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-29-service-concession-arrangements-disclosures-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-31-revenue-barter-transactions-involving-advertising-services-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-32-intangible-assets-web-site-costs-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+❌ Ошибка при обработке sic-7-introduction-of-the-euro-ru.pdf: `pypdf` package not found, please install it with `pip install pypdf`
+✅ Загружен файл: АППК.rus.docx
+✅ Загружен файл: Влияние на др лица.rus.docx
+✅ Загружен файл: Закон о банках.docx
+✅ Загружен файл: Закон об АО.docx
+✅ Загружен файл: ЗН о разрешениях.docx
+✅ Загружен файл: ЗН о регулировании ФР.rus.docx
+✅ Загружен файл: ЗН о РЦБ.rus.docx
+✅ Загружен файл: ЗН о ТОО.rus.docx
+✅ Загружен файл: ЗН об МФО.rus.docx
+✅ Загружен файл: Инфо безопасность банков.rus.docx
+✅ Загружен файл: Оффшоры 8.rus.docx
+✅ Загружен файл: Правида разрешение дочки.rus.docx
+✅ Загружен файл: Правила 189.docx
+✅ Загружен файл: Правила автоматизации бухучета.rus.docx
+✅ Загружен файл: Правила конвертации 93.rus.docx
+✅ Загружен файл: Правила по провизиям_269.docx
+✅ Загружен файл: Правила пруднормативы 170.rus.docx
+✅ Загружен файл: Правила разрешение откр банка 36.rus.docx
+✅ Загружен файл: Правила разрешение рукраб 81.rus.docx
+✅ Загружен файл: Правила риски 188.rus.docx
+✅ Загружен файл: Правила рукработники.rus.docx
+✅ Загружен файл: Правила согласия КУ 67.rus.docx
+✅ Загружен файл: Предприним кодекс.rus.docx
+✅ Загружен файл: Пруды Банк конгломерат.rus.docx
+✅ Загружен файл: Рейтинги.rus.docx
+✅ Загружен файл: Требования к помещениям банков.rus.docx
+
+=== Пересборка от 2025-04-03 19:53:10 ===
+✅ Загружен файл: ias-1-presentation-of-financial-statements-ru.pdf
+✅ Загружен файл: ias-10-events-after-the-reporting-period-ru.pdf
+✅ Загружен файл: ias-11-construction-contracts-ru.pdf
+✅ Загружен файл: ias-12-income-taxes-ru.pdf
+✅ Загружен файл: ias-16-property-plant-and-equipment-ru.pdf
+✅ Загружен файл: ias-17-leases-ru.pdf
+✅ Загружен файл: ias-18-revenue-ru.pdf
+✅ Загружен файл: ias-19-employee-benefits-ru.pdf
+✅ Загружен файл: ias-2-inventories-ru.pdf
+✅ Загружен файл: ias-20-accounting-for-government-grants-and-disclosure-of-government-assistance-ru.pdf
+✅ Загружен файл: ias-21-the-effects-of-changes-in-foreign-exchange-rates-ru.pdf
+✅ Загружен файл: ias-23-borrowing-costs-ru.pdf
+✅ Загружен файл: ias-24-related-party-disclosures-ru.pdf
+✅ Загружен файл: ias-26-accounting-and-reporting-by-retirement-benefit-plans-ru.pdf
+✅ Загружен файл: ias-27-separate-financial-statements-ru.pdf
+✅ Загружен файл: ias-28-investments-in-associates-and-joint-ventures-ru.pdf
+✅ Загружен файл: ias-29-financial-reporting-in-hyperinflationary-economies-ru.pdf
+✅ Загружен файл: ias-32-financial-instruments-presentation-ru.pdf
+✅ Загружен файл: ias-33-earnings-per-share-ru.pdf
+✅ Загружен файл: ias-34-interim-financial-reporting-ru.pdf
+✅ Загружен файл: ias-36-impairment-of-assets-ru.pdf
+✅ Загружен файл: ias-37-provisions-contingent-liabilities-and-contingent-assets-ru.pdf
+✅ Загружен файл: ias-38-intangible-assets-ru.pdf
+✅ Загружен файл: ias-39-financial-instruments-recognition-and-measurement-ru.pdf
+✅ Загружен файл: ias-40-investment-property-ru.pdf
+✅ Загружен файл: ias-41-agriculture-ru.pdf
+✅ Загружен файл: ias-7-statement-of-cash-flows-ru.pdf
+✅ Загружен файл: ias-8-accounting-policies-changes-in-accounting-estimates-and-errors-ru.pdf
+✅ Загружен файл: ifric-1-changes-in-existing-decommissioning-restoration-and-similar-liabilities-ru.pdf
+✅ Загружен файл: ifric-10-interim-financial-reporting-and-impairment-ru.pdf
+✅ Загружен файл: ifric-12-service-concession-arrangements-ru.pdf
+✅ Загружен файл: ifric-13-customer-loyalty-programmes-ru.pdf
+✅ Загружен файл: ifric-14-ias-19-the-limit-on-a-defined-benefit-asset-minimum-funding-requirements-and-their-interaction-ru.pdf
+✅ Загружен файл: ifric-15-agreements-for-the-construction-of-real-estate-ru.pdf
+✅ Загружен файл: ifric-16-hedges-of-a-net-investment-in-a-foreign-operation-ru.pdf
+✅ Загружен файл: ifric-17-distributions-of-non-cash-assets-to-owners-ru.pdf
+✅ Загружен файл: ifric-18-transfers-of-assets-from-customers-ru.pdf
+✅ Загружен файл: ifric-19-extinguishing-financial-liabilities-with-equity-instruments-ru.pdf
+✅ Загружен файл: ifric-2-members-shares-in-co-operative-entities-and-similar-instruments-ru.pdf
+✅ Загружен файл: ifric-20-stripping-costs-in-the-production-phase-of-a-surface-mine-ru.pdf
+✅ Загружен файл: ifric-4-determining-whether-an-arrangement-contains-a-lease-ru.pdf
+✅ Загружен файл: ifric-5-rights-to-interests-arising-from-decommissioning-restoration-and-environmental-rehabilitation-funds-ru.pdf
+✅ Загружен файл: ifric-6-liabilities-arising-from-participating-in-a-specific-market-waste-electrical-and-electronic-equipment-ru.pdf
+✅ Загружен файл: ifric-7-applying-the-restatement-approach-under-ias-29-financial-reporting-in-hyperinflationary-economies-ru.pdf
+✅ Загружен файл: ifrs-1-first-time-adoption-of-international-financial-reporting-standards-ru.pdf
+✅ Загружен файл: ifrs-10-consolidated-financial-statements-ru.pdf
+✅ Загружен файл: ifrs-11-joint-arrangements-ru.pdf
+✅ Загружен файл: ifrs-12-disclosure-of-interests-in-other-entities-ru.pdf
+✅ Загружен файл: ifrs-13-fair-value-measurement-ru.pdf
+✅ Загружен файл: ifrs-2-share-based-payment-ru.pdf
+✅ Загружен файл: ifrs-3-business-combinations-ru.pdf
+✅ Загружен файл: ifrs-4-insurance-contracts-ru.pdf
+✅ Загружен файл: ifrs-5-non-current-assets-held-for-sale-and-discontinued-operations-ru.pdf
+✅ Загружен файл: ifrs-6-exploration-for-and-evaluation-of-mineral-resources-ru.pdf
+✅ Загружен файл: ifrs-7-financial-instruments-disclosures-ru.pdf
+✅ Загружен файл: ifrs-8-operating-segments-ru.pdf
+✅ Загружен файл: ifrs-9-financial-instruments-ru.pdf
+✅ Загружен файл: sic-10-government-assistance-no-specific-relation-to-operating-activities-ru.pdf
+✅ Загружен файл: sic-15-operating-leases-incentives-ru.pdf
+✅ Загружен файл: sic-25-income-taxes-changes-in-the-tax-status-of-an-entity-or-its-shareholders-ru.pdf
+✅ Загружен файл: sic-27-evaluating-the-substance-of-transactions-involving-the-legal-form-of-a-lease-ru.pdf
+✅ Загружен файл: sic-29-service-concession-arrangements-disclosures-ru.pdf
+✅ Загружен файл: sic-31-revenue-barter-transactions-involving-advertising-services-ru.pdf
+✅ Загружен файл: sic-32-intangible-assets-web-site-costs-ru.pdf
+✅ Загружен файл: sic-7-introduction-of-the-euro-ru.pdf
+✅ Загружен файл: АППК.rus.docx
+✅ Загружен файл: Влияние на др лица.rus.docx
+✅ Загружен файл: Закон о банках.docx
+✅ Загружен файл: Закон об АО.docx
+✅ Загружен файл: ЗН о разрешениях.docx
+✅ Загружен файл: ЗН о регулировании ФР.rus.docx
+✅ Загружен файл: ЗН о РЦБ.rus.docx
+✅ Загружен файл: ЗН о ТОО.rus.docx
+✅ Загружен файл: ЗН об МФО.rus.docx
+✅ Загружен файл: Инфо безопасность банков.rus.docx
+✅ Загружен файл: Оффшоры 8.rus.docx
+✅ Загружен файл: Правида разрешение дочки.rus.docx
+✅ Загружен файл: Правила 189.docx
+✅ Загружен файл: Правила автоматизации бухучета.rus.docx
+✅ Загружен файл: Правила конвертации 93.rus.docx
+✅ Загружен файл: Правила по провизиям_269.docx
+✅ Загружен файл: Правила пруднормативы 170.rus.docx
+✅ Загружен файл: Правила разрешение откр банка 36.rus.docx
+✅ Загружен файл: Правила разрешение рукраб 81.rus.docx
+✅ Загружен файл: Правила риски 188.rus.docx
+✅ Загружен файл: Правила рукработники.rus.docx
+✅ Загружен файл: Правила согласия КУ 67.rus.docx
+✅ Загружен файл: Предприним кодекс.rus.docx
+✅ Загружен файл: Пруды Банк конгломерат.rus.docx
+✅ Загружен файл: Рейтинги.rus.docx
+✅ Загружен файл: Требования к помещениям банков.rus.docx
+
