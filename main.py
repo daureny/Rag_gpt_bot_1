@@ -27,6 +27,11 @@ from langchain.chains import ConversationalRetrievalChain
 import hashlib
 from fastapi import Header
 
+import os
+import subprocess
+import tempfile
+from pathlib import Path
+
 load_dotenv()
 
 # Создаем приложение FastAPI с подробными логами
@@ -74,6 +79,36 @@ session_last_activity = {}
 SESSION_MAX_AGE = 86400
 
 
+def download_documents_from_github():
+    """Загружает документы из репозитория GitHub"""
+
+    # URL репозитория с документами
+    GITHUB_REPO = "https://github.com/ваш_пользователь/rag-chatbot-documents.git"
+
+    # Для приватного репозитория используем токен из переменных окружения
+    github_token = os.environ.get("GITHUB_TOKEN")
+    if github_token:
+        GITHUB_REPO = f"https://{github_token}@github.com/ваш_пользователь/rag-chatbot-documents.git"
+
+    # Создаем временную директорию
+    temp_dir = tempfile.mkdtemp()
+
+    try:
+        print(f"Клонирование репозитория с документами в {temp_dir}...")
+        # Клонируем только последнюю версию для экономии времени и места
+        subprocess.run(
+            ["git", "clone", "--depth", "1", GITHUB_REPO, temp_dir],
+            check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        print("Репозиторий с документами успешно клонирован")
+        return temp_dir  # Возвращаем путь к временной директории
+    except Exception as e:
+        print(f"Ошибка при клонировании репозитория: {e}")
+        return None
+
+
+
+
 def extract_title(text: str, filename: str) -> str:
     lines = text.splitlines()[:5]
     for line in lines:
@@ -89,16 +124,27 @@ def build_combined_txt():
     log_lines = []
     start_time = time.time()  # Замер времени начала
 
-    print(f"Начало индексации: обнаружено {sum(1 for _ in Path('docs').glob('*.pdf'))} PDF-файлов")
+    print("Начало индексации: загружаем документы из GitHub...")
 
     # Создаем директорию для индекса, если её нет
     if not os.path.exists(INDEX_PATH):
         os.makedirs(INDEX_PATH)
 
-    docs_path = Path("docs")
-    if not docs_path.exists():
-        docs_path.mkdir(exist_ok=True)
-        log_lines.append("⚠️ Создана пустая директория docs")
+    # Загружаем документы из GitHub
+    github_docs_path = download_documents_from_github()
+    if not github_docs_path:
+        log_lines.append("❌ Не удалось загрузить документы из GitHub")
+        # Проверяем локальную директорию docs как запасной вариант
+        docs_path = Path("docs")
+        if not docs_path.exists():
+            docs_path.mkdir(exist_ok=True)
+            log_lines.append("⚠️ Создана пустая директория docs")
+    else:
+        # Успешно загружены документы из GitHub
+        docs_path = Path(github_docs_path)
+        log_lines.append("✅ Успешно загружены документы из GitHub")
+
+    print(f"Начало обработки документов: обнаружено {sum(1 for _ in docs_path.glob('*.pdf'))} PDF-файлов")
 
     all_docs = []
     processed_files = 0
@@ -172,6 +218,16 @@ def build_combined_txt():
         empty_texts = [{"page_content": "Empty index", "metadata": {"source": "Empty", "id": str(uuid.uuid4())}}]
         db = FAISS.from_documents(empty_texts, embeddings)
         db.save_local(INDEX_PATH)
+
+        # Очищаем временную директорию с GitHub документами, если она существует
+        if github_docs_path:
+            try:
+                import shutil
+                shutil.rmtree(github_docs_path)
+                print(f"Удалена временная директория GitHub: {github_docs_path}")
+            except Exception as e:
+                print(f"Ошибка при удалении временной директории: {e}")
+
         return
 
     # Используем улучшенный сплиттер
@@ -207,6 +263,16 @@ def build_combined_txt():
             log.write(f"=== Ошибка пересборки от {timestamp} ===\n")
             log.write("\n".join(log_lines) + "\n")
             log.write(f"Ошибка: {e}\n\n")
+
+        # Очищаем временную директорию с GitHub документами, если она существует
+        if github_docs_path:
+            try:
+                import shutil
+                shutil.rmtree(github_docs_path)
+                print(f"Удалена временная директория GitHub: {github_docs_path}")
+            except Exception as e2:
+                print(f"Ошибка при удалении временной директории: {e2}")
+
         raise
 
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -217,8 +283,56 @@ def build_combined_txt():
         log.write(f"=== Пересборка от {timestamp} ===\n")
         log.write("\n".join(log_lines) + "\n\n")
 
-# Остальной код main.py продолжится в следующем артефакте
-# Продолжение main.py (начало в предыдущем артефакте)
+    # Очищаем временную директорию с GitHub документами, если она существует
+    if github_docs_path:
+        try:
+            import shutil
+            shutil.rmtree(github_docs_path)
+            print(f"Удалена временная директория GitHub: {github_docs_path}")
+        except Exception as e:
+            print(f"Ошибка при удалении временной директории: {e}")
+
+
+@app.post("/github-webhook")
+async def github_webhook(request: Request):
+    """Обрабатывает вебхуки от GitHub для автоматического обновления базы знаний"""
+    try:
+        # Получаем данные запроса для логирования
+        payload = await request.json()
+        repository = payload.get("repository", {}).get("full_name", "Unknown")
+
+        print(f"Получен вебхук от GitHub репозитория: {repository}")
+
+        # Проверяем, что это push событие в нужный репозиторий
+        if "rag-chatbot-documents" not in repository.lower():
+            return {"status": "skipped", "message": "Вебхук не относится к репозиторию с документами"}
+
+        # Запускаем обновление индекса в фоновом режиме
+        import threading
+        thread = threading.Thread(target=build_combined_txt)
+        thread.start()
+
+        print(f"Запущено фоновое обновление базы знаний из репозитория {repository}")
+
+        # Записываем в лог информацию о вебхуке
+        with open(LOG_FILE, "a", encoding="utf-8") as log:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            log.write(f"=== Получен GitHub вебхук от {repository} в {timestamp} ===\n")
+            log.write("Запущено автоматическое обновление базы знаний\n\n")
+
+        return {"status": "success", "message": "Начато обновление базы знаний"}
+
+    except Exception as e:
+        error_msg = f"Ошибка при обработке GitHub вебхука: {str(e)}"
+        print(error_msg)
+
+        # Логируем ошибку
+        with open(LOG_FILE, "a", encoding="utf-8") as log:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            log.write(f"=== Ошибка обработки GitHub вебхука в {timestamp} ===\n")
+            log.write(f"Ошибка: {str(e)}\n\n")
+
+        return {"status": "error", "message": error_msg}
 
 def load_vectorstore():
     """Загружает векторное хранилище, создавая его при необходимости"""

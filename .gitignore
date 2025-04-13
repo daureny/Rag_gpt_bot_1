@@ -1,0 +1,23 @@
+# Виртуальное окружение
+venv/
+env/
+.env
+
+# Кэши и временные файлы
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Директории базы знаний и логов
+faiss_index/
+docs/*
+!docs/.gitkeep
+rebuild_log.txt
+last_updated.txt
+
+# Системные файлы
+.DS_Store
+Thumbs.db

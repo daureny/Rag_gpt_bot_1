@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Form, Request, Cookie, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware  # Импортируем CORS middleware
+from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import datetime
@@ -10,13 +10,16 @@ import uuid
 import html
 import time
 
+from pypdf import PdfReader  # Обновленный импорт
+
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
 from langchain_community.document_loaders import (
     TextLoader,
     PyPDFLoader,
     Docx2txtLoader,
     UnstructuredHTMLLoader
 )
-from langchain.text_splitter import CharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.chains import ConversationalRetrievalChain
@@ -24,14 +27,13 @@ from langchain.chains import ConversationalRetrievalChain
 import hashlib
 from fastapi import Header
 
-
 load_dotenv()
 
 # Создаем приложение FastAPI с подробными логами
 app = FastAPI(
     title="RAG Chat Bot",
     description="Чат-бот с использованием Retrieval-Augmented Generation",
-    version="0.2.0",
+    version="0.3.0",
     debug=True
 )
 
@@ -40,17 +42,17 @@ origins = [
     "http://localhost",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
-    "https://2f93-2a03-32c0-2d-d051-716a-650e-df98-8a9f.ngrok-free.app",  # Ваш URL ngrok
-    "https://standardbusiness.online",  # Ваш домен WordPress
-    "https://*.standardbusiness.online",  # Поддомены вашего сайта
+    "https://2f93-2a03-32c0-2d-d051-716a-650e-df98-8a9f.ngrok-free.app",
+    "https://standardbusiness.online",
+    "https://*.standardbusiness.online",
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=True,     # Разрешает передачу кук и заголовков авторизации
-    allow_methods=["*"],        # Разрешает все HTTP методы (GET, POST, etc.)
-    allow_headers=["*"],        # Разрешает все заголовки HTTP
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Проверка директории static перед монтированием
@@ -66,11 +68,9 @@ LAST_UPDATED_FILE = "last_updated.txt"
 LOG_FILE = "rebuild_log.txt"
 chunk_store = {}
 
-# Словарь для хранения истории диалогов (список пар вопрос-ответ)
+# Словарь для хранения истории диалогов
 session_memories = {}
-# Время последней активности сессий для очистки старых
 session_last_activity = {}
-# Максимальное время жизни сессии в секундах (24 часа)
 SESSION_MAX_AGE = 86400
 
 
@@ -87,22 +87,47 @@ def build_combined_txt():
     global chunk_store
     chunk_store = {}
     log_lines = []
+    start_time = time.time()  # Замер времени начала
+
+    print(f"Начало индексации: обнаружено {sum(1 for _ in Path('docs').glob('*.pdf'))} PDF-файлов")
 
     # Создаем директорию для индекса, если её нет
     if not os.path.exists(INDEX_PATH):
         os.makedirs(INDEX_PATH)
 
     docs_path = Path("docs")
-    # Проверяем существование директории docs
     if not docs_path.exists():
         docs_path.mkdir(exist_ok=True)
         log_lines.append("⚠️ Создана пустая директория docs")
 
     all_docs = []
+    processed_files = 0
+    failed_files = 0
+
     for file in docs_path.iterdir():
         try:
             if file.name == "combined.txt":
                 continue
+
+            # Специальная проверка для PDF
+            if file.suffix == ".pdf":
+                try:
+                    # Проверка возможности чтения
+                    with open(str(file), 'rb') as f:
+                        pdf_reader = PdfReader(f)
+                        # Дополнительная проверка доступности текста
+                        has_text = any(page.extract_text().strip() for page in pdf_reader.pages)
+
+                    if not has_text:
+                        log_lines.append(f"⚠️ PDF {file.name} не содержит извлекаемого текста")
+                        failed_files += 1
+                        continue
+                except Exception as e:
+                    log_lines.append(f"❌ Ошибка при проверке PDF {file.name}: {e}")
+                    failed_files += 1
+                    continue
+
+            # Выбор загрузчика
             if file.suffix == ".txt":
                 loader = TextLoader(str(file), encoding="utf-8")
             elif file.suffix == ".pdf":
@@ -120,9 +145,16 @@ def build_combined_txt():
                 page.metadata["source"] = source_title
                 all_docs.append(page)
 
+            processed_files += 1
             log_lines.append(f"✅ Загружен файл: {file.name}")
+
+            # Прогресс-бар каждые 5 файлов
+            if processed_files % 5 == 0:
+                print(f"Обработано файлов: {processed_files}")
+
         except Exception as e:
             log_lines.append(f"❌ Ошибка при обработке {file.name}: {e}")
+            failed_files += 1
 
     # Проверяем, есть ли документы для индексации
     if not all_docs:
@@ -142,16 +174,31 @@ def build_combined_txt():
         db.save_local(INDEX_PATH)
         return
 
-    splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    # Используем улучшенный сплиттер
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200,
+        separators=["\n\n", "\n", " ", ""]
+    )
     texts = splitter.split_documents(all_docs)
     for doc in texts:
         doc.metadata["id"] = str(uuid.uuid4())
         chunk_store[doc.metadata["id"]] = doc.page_content
 
     try:
+        print("Начало векторизации документов...")
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
         db = FAISS.from_documents(texts, embeddings)
         db.save_local(INDEX_PATH)
+
+        # Финальная статистика
+        end_time = time.time()
+        total_time = end_time - start_time
+        print(f"Индексация завершена за {total_time:.2f} секунд")
+        print(f"Всего файлов: {processed_files + failed_files}")
+        print(f"Успешно обработано: {processed_files}")
+        print(f"Не удалось обработать: {failed_files}")
+
     except Exception as e:
         log_lines.append(f"❌ Ошибка при создании индекса: {e}")
         # Записываем ошибку в лог
@@ -170,6 +217,8 @@ def build_combined_txt():
         log.write(f"=== Пересборка от {timestamp} ===\n")
         log.write("\n".join(log_lines) + "\n\n")
 
+# Остальной код main.py продолжится в следующем артефакте
+# Продолжение main.py (начало в предыдущем артефакте)
 
 def load_vectorstore():
     """Загружает векторное хранилище, создавая его при необходимости"""
@@ -219,7 +268,6 @@ def load_vectorstore():
             db.save_local(INDEX_PATH)
             return db
 
-
 def clean_old_sessions():
     """Очищает старые сессии для экономии памяти"""
     current_time = time.time()
@@ -234,7 +282,6 @@ def clean_old_sessions():
             del session_memories[session_id]
         if session_id in session_last_activity:
             del session_last_activity[session_id]
-
 
 @app.on_event("startup")
 async def startup_event():
@@ -253,8 +300,8 @@ async def startup_event():
 
     print("Приложение запущено и готово к работе!")
 
-
 @app.get("/", response_class=HTMLResponse)
+
 def chat_ui():
     try:
         print("Запрос к главной странице...")
@@ -283,9 +330,8 @@ def chat_ui():
             status_code=500
         )
 
-
 @app.post("/ask")
-def ask(q: str = Form(...), session_id: str = Cookie(None), response: Response = None):
+async def ask(q: str = Form(...), session_id: str = Cookie(None), response: Response = None):
     print(f"Получен запрос: {q[:50]}...")
 
     # Проверяем, есть ли текст в запросе
@@ -339,52 +385,52 @@ def ask(q: str = Form(...), session_id: str = Cookie(None), response: Response =
 
         # Создаем улучшенный системный промпт с инструкциями по контексту и форматированию
         system_prompt = """
-        Ты ассистент с доступом к базе знаний. Используй информацию из базы знаний для ответа на вопросы.
+                Ты ассистент с доступом к базе знаний. Используй информацию из базы знаний для ответа на вопросы.
 
-        ОЧЕНЬ ВАЖНО: При ответе обязательно учитывай историю диалога и предыдущие вопросы пользователя!
-        Если пользователь задает вопрос, который связан с предыдущим (например "Как его рассчитать?"), 
-        то обязательно восстанови контекст из предыдущих сообщений.
+                ОЧЕНЬ ВАЖНО: При ответе обязательно учитывай историю диалога и предыдущие вопросы пользователя!
+                Если пользователь задает вопрос, который связан с предыдущим (например "Как его рассчитать?"), 
+                то обязательно восстанови контекст из предыдущих сообщений.
 
-        Если в базе знаний нет достаточной информации для полного ответа, честно признайся, что не знаешь.
+                Если в базе знаний нет достаточной информации для полного ответа, честно признайся, что не знаешь.
 
-        ВАЖНОЕ ТРЕБОВАНИЕ К ФОРМАТИРОВАНИЮ:
-        1. Структурируй ответ с использованием АБЗАЦЕВ - каждый новый абзац должен начинаться с новой строки и отделяться ПУСТОЙ строкой.
-        2. Для создания абзаца используй ДВОЙНОЙ перенос строки (два символа новой строки).
-        3. Избегай длинных параграфов без разбивки - максимум 5-7 строк в одном абзаце.
-        4. Для списков используй следующие форматы:
-           - Маркированный список: каждый пункт с новой строки, начиная с символа "•" или "-"
-           - Нумерованный список: с новой строки, начиная с "1.", "2." и т.д.
-        5. НИКОГДА не используй HTML-теги (например <br>, <p>, <div> и т.д.)
-        6. Выделяй важные концепции с помощью символов * (для выделения) или ** (для сильного выделения)
+                ВАЖНОЕ ТРЕБОВАНИЕ К ФОРМАТИРОВАНИЮ:
+                1. Структурируй ответ с использованием АБЗАЦЕВ - каждый новый абзац должен начинаться с новой строки и отделяться ПУСТОЙ строкой.
+                2. Для создания абзаца используй ДВОЙНОЙ перенос строки (два символа новой строки).
+                3. Избегай длинных параграфов без разбивки - максимум 5-7 строк в одном абзаце.
+                4. Для списков используй следующие форматы:
+                   - Маркированный список: каждый пункт с новой строки, начиная с символа "•" или "-"
+                   - Нумерованный список: с новой строки, начиная с "1.", "2." и т.д.
+                5. НИКОГДА не используй HTML-теги (например <br>, <p>, <div> и т.д.)
+                6. Выделяй важные концепции с помощью символов * (для выделения) или ** (для сильного выделения)
 
-        ПРИМЕР ПРАВИЛЬНОГО ФОРМАТИРОВАНИЯ:
+                ПРИМЕР ПРАВИЛЬНОГО ФОРМАТИРОВАНИЯ:
 
-        Первый абзац с объяснением. Здесь я описываю основную концепцию и даю ключевую информацию.
+                Первый абзац с объяснением. Здесь я описываю основную концепцию и даю ключевую информацию.
 
-        Второй абзац с дополнительными деталями. Обрати внимание на пустую строку между абзацами.
+                Второй абзац с дополнительными деталями. Обрати внимание на пустую строку между абзацами.
 
-        Вот список важных моментов:
-        • Первый пункт списка
-        • Второй пункт списка
-        • Третий пункт списка
+                Вот список важных моментов:
+                • Первый пункт списка
+                • Второй пункт списка
+                • Третий пункт списка
 
-        Заключительный абзац с выводами.
+                Заключительный абзац с выводами.
 
-        КОНЕЦ ПРИМЕРА
+                КОНЕЦ ПРИМЕРА
 
-        Твоя задача — отвечать максимально информативно и точно по контексту, сохраняя преемственность диалога и правильное форматирование.
+                Твоя задача — отвечать максимально информативно и точно по контексту, сохраняя преемственность диалога и правильное форматирование.
 
-        Если в вопросе есть местоимения ("он", "это", "такой"), используй историю диалога, чтобы понять, о чём речь.
+                Если в вопросе есть местоимения ("он", "это", "такой"), используй историю диалога, чтобы понять, о чём речь.
 
-        Если пользователь спрашивает "как рассчитывается" или "как определяется" некий термин, 
-        и в базе знаний отсутствует точная формула или численный метод, 
-        ты должен:
-        - интерпретировать вопрос шире — как просьбу объяснить **как определяется, из чего состоит, какие компоненты, лимиты или методология используются**
-        - описать **подходы, параметры и логику**, стоящие за определением или управлением этим понятием
-        - НЕ путать такие вопросы с расчётом нормативов капитала или других несвязанных показателей
+                Если пользователь спрашивает "как рассчитывается" или "как определяется" некий термин, 
+                и в базе знаний отсутствует точная формула или численный метод, 
+                ты должен:
+                - интерпретировать вопрос шире — как просьбу объяснить **как определяется, из чего состоит, какие компоненты, лимиты или методология используются**
+                - описать **подходы, параметры и логику**, стоящие за определением или управлением этим понятием
+                - НЕ путать такие вопросы с расчётом нормативов капитала или других несвязанных показателей
 
-        Твоя цель — дать экспертный, логичный и понятный ответ, даже если прямых данных нет, используя всё, что тебе доступно.
-        """
+                Твоя цель — дать экспертный, логичный и понятный ответ, даже если прямых данных нет, используя всё, что тебе доступно.
+                """
 
         llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.2)
 
@@ -399,9 +445,8 @@ def ask(q: str = Form(...), session_id: str = Cookie(None), response: Response =
 
         # Создаем обогащенный запрос, включающий историю диалога
         # Собираем последние 3 пары вопрос-ответ, чтобы добавить больше контекста
-        recent_dialogue = " ".join([qa[0] + " " + qa[1] for qa in chat_history[-3:]])
+        recent_dialogue = " ".join([qa[0] + " " + qa[1] for qa in chat_history[-3:]]) if chat_history else ""
         enhanced_query = f"{recent_dialogue} {q}"
-
 
         print(f"Поисковый запрос: {enhanced_query[:200]}...")
 
@@ -417,26 +462,23 @@ def ask(q: str = Form(...), session_id: str = Cookie(None), response: Response =
             for i, doc in enumerate(relevant_docs):
                 context += f"Документ {i + 1}: {doc.page_content}\n\n"
 
-
         print(f"Найдено {len(relevant_docs)} релевантных документов")
-
-
 
         # Создаем полный промпт для LLM
         full_prompt = f"""
-        {system_prompt}
+                {system_prompt}
 
-        {dialog_context}
+                {dialog_context}
 
-        Контекст из базы знаний:
-        {context}
+                Контекст из базы знаний:
+                {context}
 
-        Текущий вопрос пользователя: {q}
+                Текущий вопрос пользователя: {q}
 
-        Дай подробный, содержательный ответ на основе предоставленной информации и с учётом предыдущего диалога.
-        Если вопрос связан с предыдущими вопросами, обязательно учти это в ответе.
-        Не используй HTML-теги в ответе.
-        """
+                Дай подробный, содержательный ответ на основе предоставленной информации и с учётом предыдущего диалога.
+                Если вопрос связан с предыдущими вопросами, обязательно учти это в ответе.
+                Не используй HTML-теги в ответе.
+                """
 
         print("Отправляем запрос в LLM...")
         result = llm.invoke(full_prompt)
@@ -479,15 +521,11 @@ def ask(q: str = Form(...), session_id: str = Cookie(None), response: Response =
             "sources": ""
         }, status_code=500)
 
-
-# Добавляем путь для проверки работоспособности
 @app.get("/ping")
 def ping():
     """Простой эндпоинт для проверки, что сервер работает"""
     return {"status": "ok", "message": "Сервер работает"}
 
-
-# Эндпоинт для тестирования связи с OpenAI
 @app.get("/test-openai")
 async def test_openai():
     """Тестирует подключение к API OpenAI"""
@@ -511,14 +549,12 @@ async def test_openai():
             "message": f"Ошибка при вызове OpenAI API: {str(e)}"
         }
 
-
-# Эндпоинт для тестирования контекстного поиска
 @app.post("/test-search")
 async def test_search(q: str = Form(...)):
     """Тестирует поиск документов по запросу"""
     try:
         vectorstore = load_vectorstore()
-        retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 4}) # Поменял на mmr
+        retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 4})
         docs = retriever.get_relevant_documents(q)
 
         results = []
@@ -540,8 +576,6 @@ async def test_search(q: str = Form(...)):
             "message": f"Ошибка при тестировании поиска: {str(e)}"
         }
 
-
-# Эндпоинт для проверки конфигурации
 @app.get("/config")
 def check_config():
     """Проверяет базовую конфигурацию сервера"""
@@ -602,7 +636,87 @@ def clear_session(session_id: str = Cookie(None), response: Response = None):
         return {"status": "error", "message": "Сессия не найдена"}
 
 
-# Добавляем код для запуска приложения
+@app.get("/debug-pdf-loading")
+def debug_pdf_loading():
+    """Детальная диагностика загрузки PDF-файлов"""
+    docs_path = Path("docs")
+    pdf_diagnostics = []
+
+    for file in docs_path.iterdir():
+        if file.suffix == ".pdf":
+            try:
+                # Проверка с новым PdfReader
+                with open(str(file), 'rb') as f:
+                    pdf_reader = PdfReader(f)
+                    pages_count = len(pdf_reader.pages)
+
+                    # Попытка извлечь текст
+                    text_samples = []
+                    for i, page in enumerate(pdf_reader.pages[:3], 1):
+                        page_text = page.extract_text()
+                        text_samples.append({
+                            'page': i,
+                            'text_length': len(page_text),
+                            'first_100_chars': page_text[:100]
+                        })
+
+                # Загрузка через PyPDFLoader
+                loader = PyPDFLoader(str(file))
+                pages = loader.load()
+
+                pdf_diagnostics.append({
+                    "filename": file.name,
+                    "total_pages": pages_count,
+                    "text_samples": text_samples,
+                    "page_lengths": [len(page.page_content) for page in pages],
+                    "first_page_sample": pages[0].page_content[:500] if pages else "Пустая страница",
+                    "is_text_extractable": all(len(page.page_content.strip()) > 0 for page in pages)
+                })
+            except Exception as e:
+                pdf_diagnostics.append({
+                    "filename": file.name,
+                    "error": str(e)
+                })
+
+    return pdf_diagnostics
+
+
+@app.get("/diagnose-vectorization")
+def diagnose_vectorization():
+    """Диагностика процесса векторизации документов"""
+    try:
+        vectorstore = load_vectorstore()
+
+        # Выбираем случайный запрос для тестирования
+        test_queries = [
+            "Что такое запасы?",
+            "Как определяется себестоимость?",
+            "Методы оценки запасов"
+        ]
+
+        retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 4})
+
+        results = {}
+        for query in test_queries:
+            try:
+                docs = retriever.get_relevant_documents(query)
+                results[query] = {
+                    "documents_found": len(docs),
+                    "document_sources": [doc.metadata.get("source", "Unknown") for doc in docs],
+                    "document_lengths": [len(doc.page_content) for doc in docs]
+                }
+            except Exception as e:
+                results[query] = {"error": str(e)}
+
+        return {
+            "total_indexed_documents": len(vectorstore.index_to_docstore_id),
+            "retrieval_test_results": results
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# Код для запуска приложения
 if __name__ == "__main__":
     import uvicorn
 
