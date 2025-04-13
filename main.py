@@ -83,7 +83,7 @@ def download_documents_from_github():
     """Загружает документы из репозитория GitHub"""
 
     # URL репозитория с документами
-    GITHUB_REPO = "https://github.com/ваш_пользователь/rag-chatbot-documents.git"
+    GITHUB_REPO = "https://github.com/daureny/rag-chatbot-documents.git"
 
     # Для приватного репозитория используем токен из переменных окружения
     github_token = os.environ.get("GITHUB_TOKEN")
