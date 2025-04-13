@@ -2,10 +2,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Установка системных зависимостей для unstructured
+# Установка системных зависимостей для unstructured и git
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     wget \
+    git \
+    libmagic1 \
+    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Копирование файлов проекта
