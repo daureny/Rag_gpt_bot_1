@@ -68,7 +68,7 @@ if not os.path.exists(static_dir):
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 print(f"Статические файлы монтированы из директории: {static_dir}")
 
-INDEX_PATH = "faiss_index"
+INDEX_PATH = "/data/faiss_index" # Mounted disk on Render
 LAST_UPDATED_FILE = "last_updated.txt"
 LOG_FILE = "rebuild_log.txt"
 chunk_store = {}
