@@ -141,8 +141,26 @@ def build_combined_txt():
             log_lines.append("⚠️ Создана пустая директория docs")
     else:
         # Успешно загружены документы из GitHub
-        docs_path = Path(github_docs_path)
-        log_lines.append("✅ Успешно загружены документы из GitHub")
+        # Проверяем, есть ли директория docs в репозитории
+        repo_docs_path = os.path.join(github_docs_path, "docs")
+        if os.path.exists(repo_docs_path) and os.path.isdir(repo_docs_path):
+            # Если есть директория docs, используем её
+            docs_path = Path(repo_docs_path)
+            log_lines.append("✅ Успешно загружены документы из GitHub (директория docs)")
+        else:
+            # Иначе используем корень репозитория
+            docs_path = Path(github_docs_path)
+            log_lines.append("✅ Успешно загружены документы из GitHub (корневая директория)")
+
+    # Выводим отладочную информацию о директории с документами
+    print(f"Путь к документам: {docs_path}")
+    if docs_path.exists():
+        files_list = list(docs_path.glob("*.*"))
+        print(f"Файлы в директории: {[f.name for f in files_list]}")
+        print(f"PDF файлы: {list(docs_path.glob('*.pdf'))}")
+        print(f"TXT файлы: {list(docs_path.glob('*.txt'))}")
+    else:
+        print(f"Директория {docs_path} не существует")
 
     print(f"Начало обработки документов: обнаружено {sum(1 for _ in docs_path.glob('*.pdf'))} PDF-файлов")
 
@@ -213,11 +231,26 @@ def build_combined_txt():
             log.write(f"=== Пересборка от {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n")
             log.write("\n".join(log_lines) + "\n\n")
 
-        # Создаем пустой индекс
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-        empty_texts = [{"page_content": "Empty index", "metadata": {"source": "Empty", "id": str(uuid.uuid4())}}]
-        db = FAISS.from_documents(empty_texts, embeddings)
-        db.save_local(INDEX_PATH)
+        # Создаем пустой индекс безопасным способом
+        try:
+            print("Создаем пустой индекс...")
+            embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+            from langchain.schema.document import Document
+            # Создаем документ непосредственно, без использования словаря
+            empty_doc = Document(page_content="Empty index", metadata={"source": "Empty", "id": str(uuid.uuid4())})
+            db = FAISS.from_documents([empty_doc], embeddings)
+            db.save_local(INDEX_PATH)
+            print("Пустой индекс успешно создан")
+        except Exception as e:
+            print(f"Ошибка при создании пустого индекса: {e}")
+            # Альтернативный способ создания индекса
+            try:
+                embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+                db = FAISS.from_texts(["Empty index"], embeddings, metadatas=[{"source": "Empty"}])
+                db.save_local(INDEX_PATH)
+                print("Пустой индекс создан альтернативным способом")
+            except Exception as e2:
+                print(f"Вторая ошибка при создании индекса: {e2}")
 
         # Очищаем временную директорию с GitHub документами, если она существует
         if github_docs_path:
