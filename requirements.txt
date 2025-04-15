@@ -10,7 +10,7 @@ langchain==0.0.335
 langchain-openai==0.0.5
 langchain-community==0.0.12
 faiss-cpu==1.7.4
-openai==1.3.5
+openai>=1.10.0
 
 # Обработка документов
 pypdf==3.17.1
