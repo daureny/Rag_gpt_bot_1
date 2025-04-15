@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Form, Request, Cookie, Response
+from fastapi import FastAPI, Form, Request, Cookie, Response, Header
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,8 +9,11 @@ import os
 import uuid
 import html
 import time
+import hashlib
+import subprocess
+import tempfile
 
-from pypdf import PdfReader  # Обновленный импорт
+from pypdf import PdfReader
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
@@ -24,13 +27,9 @@ from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.chains import ConversationalRetrievalChain
 
-import hashlib
-from fastapi import Header
+import httpx
+from tenacity import retry, stop_after_attempt, wait_exponential
 
-import os
-import subprocess
-import tempfile
-from pathlib import Path
 
 load_dotenv()
 
@@ -79,9 +78,18 @@ session_last_activity = {}
 SESSION_MAX_AGE = 86400
 
 
-def download_documents_from_github():
-    """Загружает документы из репозитория GitHub"""
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+def download_github_with_retry(repo_url, temp_dir):
+    """Загружает документы из репозитория GitHub с автоматическими повторными попытками"""
+    subprocess.run(
+        ["git", "clone", "--depth", "1", repo_url, temp_dir],
+        check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120
+    )
+    return True
 
+
+def download_documents_from_github():
+    """Загружает документы из репозитория GitHub с обработкой ошибок"""
     # URL репозитория с документами
     GITHUB_REPO = "https://github.com/daureny/rag-chatbot-documents.git"
 
@@ -95,19 +103,15 @@ def download_documents_from_github():
 
     try:
         print(f"Клонирование репозитория с документами в {temp_dir}...")
-        # Клонируем только последнюю версию для экономии времени и места
-        subprocess.run(
-            ["git", "clone", "--depth", "1", GITHUB_REPO, temp_dir],
-            check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
+
+        # Используем функцию с повторными попытками
+        download_github_with_retry(GITHUB_REPO, temp_dir)
+
         print("Репозиторий с документами успешно клонирован")
         return temp_dir  # Возвращаем путь к временной директории
     except Exception as e:
         print(f"Ошибка при клонировании репозитория: {e}")
         return None
-
-
-
 
 def extract_title(text: str, filename: str) -> str:
     lines = text.splitlines()[:5]
@@ -118,212 +122,226 @@ def extract_title(text: str, filename: str) -> str:
     return filename
 
 
+# 1. Разделите процесс индексации на части
+
+# Заменить функцию build_combined_txt на эту версию:
 def build_combined_txt():
+    """Собирает индекс из документов, с асинхронной обработкой и прогрессом"""
     global chunk_store
     chunk_store = {}
     log_lines = []
-    start_time = time.time()  # Замер времени начала
+    start_time = time.time()
 
-    print("Начало индексации: загружаем документы из GitHub...")
-
-    # Создаем директорию для индекса, если её нет
+    # Создаем директорию для индекса и временных файлов
     if not os.path.exists(INDEX_PATH):
         os.makedirs(INDEX_PATH)
 
-    # Загружаем документы из GitHub
-    github_docs_path = download_documents_from_github()
-    if not github_docs_path:
-        log_lines.append("❌ Не удалось загрузить документы из GitHub")
-        # Проверяем локальную директорию docs как запасной вариант
-        docs_path = Path("docs")
-        if not docs_path.exists():
-            docs_path.mkdir(exist_ok=True)
-            log_lines.append("⚠️ Создана пустая директория docs")
-    else:
-        # Успешно загружены документы из GitHub
-        # Проверяем, есть ли директория docs в репозитории
+    temp_index_path = os.path.join(INDEX_PATH, "temp_batches")
+    if not os.path.exists(temp_index_path):
+        os.makedirs(temp_index_path)
+
+    # Запись начального прогресса
+    with open(os.path.join(INDEX_PATH, "progress.txt"), "w") as f:
+        f.write("0,Начало индексации")
+
+    # Запускаем индексацию в отдельном потоке
+    import threading
+    thread = threading.Thread(target=_run_indexing_process)
+    thread.daemon = True
+    thread.start()
+
+    return {"status": "started", "message": "Индексация запущена в фоновом режиме"}
+
+
+def _run_indexing_process():
+    """Выполняет индексацию в фоновом режиме"""
+    try:
+        # Обновляем прогресс
+        def update_progress(percent, message):
+            with open(os.path.join(INDEX_PATH, "progress.txt"), "w") as f:
+                f.write(f"{percent},{message}")
+            print(f"Прогресс индексации: {percent}% - {message}")
+
+        update_progress(5, "Загрузка документов из GitHub")
+
+        # Загружаем документы из GitHub
+        github_docs_path = download_documents_from_github()
+        if not github_docs_path:
+            update_progress(100, "Ошибка: не удалось загрузить документы")
+            return
+
+        # Определяем путь к документам
         repo_docs_path = os.path.join(github_docs_path, "docs")
         if os.path.exists(repo_docs_path) and os.path.isdir(repo_docs_path):
-            # Если есть директория docs, используем её
             docs_path = Path(repo_docs_path)
-            log_lines.append("✅ Успешно загружены документы из GitHub (директория docs)")
         else:
-            # Иначе используем корень репозитория
             docs_path = Path(github_docs_path)
-            log_lines.append("✅ Успешно загружены документы из GitHub (корневая директория)")
 
-    # Выводим отладочную информацию о директории с документами
-    print(f"Путь к документам: {docs_path}")
-    if docs_path.exists():
-        files_list = list(docs_path.glob("*.*"))
-        print(f"Файлы в директории: {[f.name for f in files_list]}")
-        print(f"PDF файлы: {list(docs_path.glob('*.pdf'))}")
-        print(f"TXT файлы: {list(docs_path.glob('*.txt'))}")
-    else:
-        print(f"Директория {docs_path} не существует")
+        update_progress(15, "Сканирование файлов")
 
-    print(f"Начало обработки документов: обнаружено {sum(1 for _ in docs_path.glob('*.pdf'))} PDF-файлов")
+        # Получаем все файлы
+        all_files = list(docs_path.glob("*.*"))
+        supported_extensions = [".pdf", ".docx", ".txt", ".html"]
+        files_to_process = [f for f in all_files if f.suffix.lower() in supported_extensions]
 
-    all_docs = []
-    processed_files = 0
-    failed_files = 0
+        # Если нет файлов, создаем пустой индекс
+        if not files_to_process:
+            update_progress(100, "Нет файлов для индексации")
+            _create_empty_index()
+            return
 
-    for file in docs_path.iterdir():
-        try:
-            if file.name == "combined.txt":
-                continue
+        # Разбиваем файлы на группы для пакетной обработки
+        batch_size = 5  # Обрабатываем по 5 файлов за раз
+        file_batches = [files_to_process[i:i + batch_size] for i in range(0, len(files_to_process), batch_size)]
 
-            # Специальная проверка для PDF
-            if file.suffix == ".pdf":
+        # Создаем векторайзер для эмбеддингов
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+
+        temp_index_path = os.path.join(INDEX_PATH, "temp_batches")
+        all_docs = []
+
+        # Обрабатываем батчи файлов
+        for batch_index, batch in enumerate(file_batches):
+            update_progress(
+                20 + (60 * batch_index / len(file_batches)),
+                f"Обработка батча {batch_index + 1} из {len(file_batches)}"
+            )
+
+            batch_docs = []
+            for file in batch:
                 try:
-                    # Проверка возможности чтения
-                    with open(str(file), 'rb') as f:
-                        pdf_reader = PdfReader(f)
-                        # Дополнительная проверка доступности текста
-                        has_text = any(page.extract_text().strip() for page in pdf_reader.pages)
-
-                    if not has_text:
-                        log_lines.append(f"⚠️ PDF {file.name} не содержит извлекаемого текста")
-                        failed_files += 1
+                    # Логика загрузки файлов (как у вас в оригинальном коде)
+                    if file.suffix == ".txt":
+                        loader = TextLoader(str(file), encoding="utf-8")
+                    elif file.suffix == ".pdf":
+                        loader = PyPDFLoader(str(file))
+                    elif file.suffix == ".docx":
+                        loader = Docx2txtLoader(str(file))
+                    elif file.suffix == ".html":
+                        loader = UnstructuredHTMLLoader(str(file))
+                    else:
                         continue
+
+                    pages = loader.load()
+                    for page in pages:
+                        source_title = extract_title(page.page_content, file.name)
+                        page.metadata["source"] = source_title
+                        batch_docs.append(page)
+                        all_docs.append(page)
+
                 except Exception as e:
-                    log_lines.append(f"❌ Ошибка при проверке PDF {file.name}: {e}")
-                    failed_files += 1
+                    print(f"Ошибка при обработке {file.name}: {e}")
                     continue
 
-            # Выбор загрузчика
-            if file.suffix == ".txt":
-                loader = TextLoader(str(file), encoding="utf-8")
-            elif file.suffix == ".pdf":
-                loader = PyPDFLoader(str(file))
-            elif file.suffix == ".docx":
-                loader = Docx2txtLoader(str(file))
-            elif file.suffix == ".html":
-                loader = UnstructuredHTMLLoader(str(file))
-            else:
-                continue
+            # Если в батче есть документы, создаем временный индекс
+            if batch_docs:
+                # Разбиваем на чанки
+                splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=1000,
+                    chunk_overlap=200,
+                    separators=["\n\n", "\n", " ", ""]
+                )
 
-            pages = loader.load()
-            for page in pages:
-                source_title = extract_title(page.page_content, file.name)
-                page.metadata["source"] = source_title
-                all_docs.append(page)
+                texts = splitter.split_documents(batch_docs)
 
-            processed_files += 1
-            log_lines.append(f"✅ Загружен файл: {file.name}")
+                # Сохраняем во временный индекс
+                batch_db = FAISS.from_documents(texts, embeddings)
+                batch_db.save_local(os.path.join(temp_index_path, f"batch_{batch_index}"))
 
-            # Прогресс-бар каждые 5 файлов
-            if processed_files % 5 == 0:
-                print(f"Обработано файлов: {processed_files}")
+        # Объединяем все временные индексы
+        update_progress(85, "Объединение индексов")
 
-        except Exception as e:
-            log_lines.append(f"❌ Ошибка при обработке {file.name}: {e}")
-            failed_files += 1
+        if not all_docs:
+            update_progress(100, "Нет документов для индексации")
+            _create_empty_index()
+            return
 
-    # Проверяем, есть ли документы для индексации
-    if not all_docs:
-        log_lines.append("⚠️ Нет документов для индексации")
-        # Создаем пустой индекс
-        with open(LAST_UPDATED_FILE, "w", encoding="utf-8") as f:
-            f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " (пустой индекс)")
+        # Финальная обработка и создание индекса
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200,
+            separators=["\n\n", "\n", " ", ""]
+        )
 
-        with open(LOG_FILE, "a", encoding="utf-8") as log:
-            log.write(f"=== Пересборка от {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n")
-            log.write("\n".join(log_lines) + "\n\n")
+        texts = splitter.split_documents(all_docs)
+        for doc in texts:
+            doc.metadata["id"] = str(uuid.uuid4())
+            chunk_store[doc.metadata["id"]] = doc.page_content
 
-        # Создаем пустой индекс безопасным способом
-        try:
-            print("Создаем пустой индекс...")
-            embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-            from langchain.schema.document import Document
-            # Создаем документ непосредственно, без использования словаря
-            empty_doc = Document(page_content="Empty index", metadata={"source": "Empty", "id": str(uuid.uuid4())})
-            db = FAISS.from_documents([empty_doc], embeddings)
-            db.save_local(INDEX_PATH)
-            print("Пустой индекс успешно создан")
-        except Exception as e:
-            print(f"Ошибка при создании пустого индекса: {e}")
-            # Альтернативный способ создания индекса
-            try:
-                embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-                db = FAISS.from_texts(["Empty index"], embeddings, metadatas=[{"source": "Empty"}])
-                db.save_local(INDEX_PATH)
-                print("Пустой индекс создан альтернативным способом")
-            except Exception as e2:
-                print(f"Вторая ошибка при создании индекса: {e2}")
-
-        # Очищаем временную директорию с GitHub документами, если она существует
-        if github_docs_path:
-            try:
-                import shutil
-                shutil.rmtree(github_docs_path)
-                print(f"Удалена временная директория GitHub: {github_docs_path}")
-            except Exception as e:
-                print(f"Ошибка при удалении временной директории: {e}")
-
-        return
-
-    # Используем улучшенный сплиттер
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200,
-        separators=["\n\n", "\n", " ", ""]
-    )
-    texts = splitter.split_documents(all_docs)
-    for doc in texts:
-        doc.metadata["id"] = str(uuid.uuid4())
-        chunk_store[doc.metadata["id"]] = doc.page_content
-
-    try:
-        print("Начало векторизации документов...")
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
         db = FAISS.from_documents(texts, embeddings)
         db.save_local(INDEX_PATH)
 
-        # Финальная статистика
-        end_time = time.time()
-        total_time = end_time - start_time
-        print(f"Индексация завершена за {total_time:.2f} секунд")
-        print(f"Всего файлов: {processed_files + failed_files}")
-        print(f"Успешно обработано: {processed_files}")
-        print(f"Не удалось обработать: {failed_files}")
+        # Очистка временных файлов
+        update_progress(95, "Очистка временных файлов")
+        import shutil
+        shutil.rmtree(temp_index_path, ignore_errors=True)
+
+        if github_docs_path:
+            shutil.rmtree(github_docs_path, ignore_errors=True)
+
+        # Запись информации о последнем обновлении
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(LAST_UPDATED_FILE, "w", encoding="utf-8") as f:
+            f.write(timestamp)
+
+        update_progress(100, "Индексация завершена")
 
     except Exception as e:
-        log_lines.append(f"❌ Ошибка при создании индекса: {e}")
-        # Записываем ошибку в лог
+        print(f"Ошибка в фоновой индексации: {e}")
+        with open(os.path.join(INDEX_PATH, "progress.txt"), "w") as f:
+            f.write(f"100,Ошибка: {str(e)}")
+
+
+def _create_empty_index():
+    """Создает пустой индекс в случае отсутствия документов"""
+    try:
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+        from langchain.schema.document import Document
+        empty_doc = Document(page_content="Empty index", metadata={"source": "Empty", "id": str(uuid.uuid4())})
+        db = FAISS.from_documents([empty_doc], embeddings)
+        db.save_local(INDEX_PATH)
+
+        # Запись информации о последнем обновлении
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with open(LOG_FILE, "a", encoding="utf-8") as log:
-            log.write(f"=== Ошибка пересборки от {timestamp} ===\n")
-            log.write("\n".join(log_lines) + "\n")
-            log.write(f"Ошибка: {e}\n\n")
+        with open(LAST_UPDATED_FILE, "w", encoding="utf-8") as f:
+            f.write(timestamp + " (пустой индекс)")
+    except Exception as e:
+        print(f"Ошибка при создании пустого индекса: {e}")
 
-        # Очищаем временную директорию с GitHub документами, если она существует
-        if github_docs_path:
-            try:
-                import shutil
-                shutil.rmtree(github_docs_path)
-                print(f"Удалена временная директория GitHub: {github_docs_path}")
-            except Exception as e2:
-                print(f"Ошибка при удалении временной директории: {e2}")
 
-        raise
+# 2. Добавьте новый эндпоинт для проверки статуса индексации
 
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(LAST_UPDATED_FILE, "w", encoding="utf-8") as f:
-        f.write(timestamp)
+@app.get("/index-status")
+def index_status():
+    """Возвращает текущий статус индексации"""
+    try:
+        progress_path = os.path.join(INDEX_PATH, "progress.txt")
+        if os.path.exists(progress_path):
+            with open(progress_path, "r") as f:
+                progress_data = f.read().strip().split(",", 1)
+                if len(progress_data) == 2:
+                    percent, message = progress_data
+                    return {
+                        "status": "in_progress" if int(percent) < 100 else "completed",
+                        "percent": int(percent),
+                        "message": message
+                    }
 
-    with open(LOG_FILE, "a", encoding="utf-8") as log:
-        log.write(f"=== Пересборка от {timestamp} ===\n")
-        log.write("\n".join(log_lines) + "\n\n")
+        # Если файл прогресса не найден, но индекс существует
+        if os.path.exists(INDEX_PATH) and os.listdir(INDEX_PATH):
+            if os.path.exists(LAST_UPDATED_FILE):
+                with open(LAST_UPDATED_FILE, "r") as f:
+                    last_updated = f.read().strip()
+                return {
+                    "status": "completed",
+                    "percent": 100,
+                    "message": f"Индексация завершена. Последнее обновление: {last_updated}"
+                }
+            return {"status": "completed", "percent": 100, "message": "Индексация завершена"}
 
-    # Очищаем временную директорию с GitHub документами, если она существует
-    if github_docs_path:
-        try:
-            import shutil
-            shutil.rmtree(github_docs_path)
-            print(f"Удалена временная директория GitHub: {github_docs_path}")
-        except Exception as e:
-            print(f"Ошибка при удалении временной директории: {e}")
+        return {"status": "unknown", "percent": 0, "message": "Статус индексации неизвестен"}
+    except Exception as e:
+        return {"status": "error", "percent": 0, "message": f"Ошибка: {str(e)}"}
 
 
 @app.post("/github-webhook")
@@ -340,18 +358,22 @@ async def github_webhook(request: Request):
         if "rag-chatbot-documents" not in repository.lower():
             return {"status": "skipped", "message": "Вебхук не относится к репозиторию с документами"}
 
-        # Запускаем обновление индекса в фоновом режиме
+        # Запускаем обновление индекса в фоновом режиме без ожидания завершения
         import threading
         thread = threading.Thread(target=build_combined_txt)
+        thread.daemon = True  # Важно! Позволяет завершить поток при выходе из приложения
         thread.start()
 
-        print(f"Запущено фоновое обновление базы знаний из репозитория {repository}")
+        # Записываем в прогресс-файл начало процесса
+        progress_path = os.path.join(INDEX_PATH, "progress.txt")
+        with open(progress_path, "w") as f:
+            f.write("1,Начало фоновой индексации")
 
         # Записываем в лог информацию о вебхуке
         with open(LOG_FILE, "a", encoding="utf-8") as log:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             log.write(f"=== Получен GitHub вебхук от {repository} в {timestamp} ===\n")
-            log.write("Запущено автоматическое обновление базы знаний\n\n")
+            log.write("Запущено автоматическое обновление базы знаний в фоновом режиме\n\n")
 
         return {"status": "success", "message": "Начато обновление базы знаний"}
 
@@ -411,7 +433,7 @@ def load_vectorstore():
             embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
             empty_texts = [{"page_content": "Индекс пуст или поврежден", "metadata": {"source": "Empty"}}]
             db = FAISS.from_texts([t["page_content"] for t in empty_texts], embeddings,
-                                  metadatas=[t["metadata"] for t in empty_texts])
+                                 metadatas=[t["metadata"] for t in empty_texts])
             db.save_local(INDEX_PATH)
             return db
 
@@ -448,7 +470,6 @@ async def startup_event():
     print("Приложение запущено и готово к работе!")
 
 @app.get("/", response_class=HTMLResponse)
-
 def chat_ui():
     try:
         print("Запрос к главной странице...")
@@ -737,7 +758,6 @@ def check_config():
     }
     return config
 
-
 @app.post("/rebuild")
 async def rebuild_index(admin_token: str = Header(None)):
     """Пересоздает индекс документов с проверкой пароля администратора"""
@@ -772,7 +792,6 @@ async def rebuild_index(admin_token: str = Header(None)):
             "message": error_msg
         }, status_code=500)
 
-
 @app.post("/clear-session")
 def clear_session(session_id: str = Cookie(None), response: Response = None):
     """Очищает историю сессии"""
@@ -781,7 +800,6 @@ def clear_session(session_id: str = Cookie(None), response: Response = None):
         return {"status": "success", "message": "История диалога очищена"}
     else:
         return {"status": "error", "message": "Сессия не найдена"}
-
 
 @app.get("/debug-pdf-loading")
 def debug_pdf_loading():
@@ -827,7 +845,6 @@ def debug_pdf_loading():
 
     return pdf_diagnostics
 
-
 @app.get("/diagnose-vectorization")
 def diagnose_vectorization():
     """Диагностика процесса векторизации документов"""
@@ -861,7 +878,6 @@ def diagnose_vectorization():
         }
     except Exception as e:
         return {"error": str(e)}
-
 
 # Код для запуска приложения
 if __name__ == "__main__":

@@ -7,37 +7,48 @@
 
     <title>Бот-консультант</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             background-color: #121212;
             color: white;
             font-family: 'Inter', sans-serif;
-
             display: flex;
             flex-direction: column;
             align-items: center;
             margin: 0;
             padding: 0;
             height: 100vh;
+            overscroll-behavior: none;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
         }
         header {
-            padding: 20px;
-            font-size: 1.8rem;
+            padding: 10px;
+            font-size: 1.4rem;
             font-weight: bold;
             text-align: center;
+            width: 100%;
+            box-sizing: border-box;
         }
         #chat {
-            width: 90%;
+            width: 95%;
             max-width: 900px;
             flex: 1;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            padding: 10px;
+            padding: 10px 5px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
         }
         .message {
             padding: 10px 15px;
             border-radius: 15px;
-            max-width: 70%;
+            max-width: 85%;
             margin: 5px 0;
             white-space: pre-wrap;
             word-break: break-word;
@@ -47,11 +58,13 @@
             background-color: #007bff;
             color: white;
             align-self: flex-end;
+            margin-right: 5px;
         }
         .bot {
             background-color: #1e1e1e;
             color: #a2f5a2;
             align-self: flex-start;
+            margin-left: 5px;
         }
         /* Добавляем стили для абзацев и списков */
         .bot p {
@@ -68,12 +81,13 @@
             margin-bottom: 3px;
         }
         footer {
-            width: 90%;
+            width: 95%;
             max-width: 900px;
-            padding: 10px;
+            padding: 10px 5px;
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+            gap: 5px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
         }
         input[type=text], input[type=password] {
             flex: 1;
@@ -85,13 +99,14 @@
             color: white;
         }
         button {
-            padding: 10px 20px;
+            padding: 10px 15px;
             background-color: #28a745;
             border: none;
             border-radius: 8px;
             color: white;
             font-weight: bold;
             cursor: pointer;
+            white-space: nowrap;
         }
         button:hover {
             background-color: #218838;
@@ -106,12 +121,13 @@
             background-color: #222;
             padding: 10px;
             border-radius: 8px;
+            width: 100%;
         }
 
         /* Стили для панели администратора */
         .admin-panel {
-            max-width: 400px;
-            margin: 10px auto;
+            max-width: 95%;
+            margin: 5px auto;
             text-align: center;
         }
 
@@ -199,8 +215,122 @@
         .clear-history-button {
             background-color: #6c757d;
             font-size: 12px;
-            padding: 6px 10px;
-            margin-right: 10px;
+            padding: 6px 8px;
+            margin-right: 5px;
+        }
+
+        /* Оптимизация для мобильных устройств */
+        @media screen and (max-width: 600px) {
+            header {
+                padding: 8px;
+                font-size: 1.2rem;
+            }
+
+            #chat {
+                width: 100%;
+                padding: 5px;
+                margin: 0;
+            }
+
+            .message {
+                max-width: 80%;
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+
+            .user {
+                margin-right: 10px;
+            }
+
+            .bot {
+                margin-left: 10px;
+            }
+
+            footer {
+                width: 100%;
+                padding: 8px 5px;
+                gap: 3px;
+                margin: 0;
+            }
+
+            button {
+                padding: 8px 10px;
+                font-size: 14px;
+            }
+
+            input[type=text], input[type=password] {
+                padding: 8px;
+                font-size: 14px;
+            }
+
+            .clear-history-button {
+                padding: 6px;
+                font-size: 11px;
+            }
+
+            #sources-container {
+                width: 100%;
+                font-size: 13px;
+            }
+
+            .admin-panel-content {
+                padding: 10px;
+            }
+
+            .bot p {
+                margin: 0 0 8px 0;
+            }
+
+            .bot ul, .bot ol {
+                padding-left: 15px;
+            }
+        }
+
+        /* Запрет масштабирования при фокусе на полях ввода в iOS */
+        @media screen and (max-width: 600px) {
+            input[type=text], input[type=password] {
+                font-size: 16px;
+            }
+        }
+
+        /* Исправление проблемы с fixed позиционированием на мобильных */
+        @supports (-webkit-touch-callout: none) {
+            /* CSS для iOS-устройств */
+            body, html {
+                height: -webkit-fill-available;
+            }
+
+            body {
+                min-height: -webkit-fill-available;
+            }
+        }
+
+        /* Корректировка для virtual keyboard */
+        @media screen and (max-height: 400px) and (max-width: 600px) {
+            header {
+                display: none;
+            }
+
+            #chat {
+                max-height: 70vh;
+            }
+        }
+
+        #sources-container {
+            width: 95%;
+            max-width: 900px;
+            margin: 5px auto 15px auto;
+            overflow-x: auto;
+            padding: 0 5px;
+            box-sizing: border-box;
+        }
+
+        @media screen and (max-width: 600px) {
+            #sources-container {
+                width: 100%;
+                padding: 0 5px;
+                margin: 5px 0 10px 0;
+            }
         }
     </style>
 </head>
@@ -208,11 +338,11 @@
     <header>Бот-консультант</header>
     <div id="chat"></div>
     <footer>
-        <button id="clearHistoryButton" class="clear-history-button">Очистить историю</button>
+        <button id="clearHistoryButton" class="clear-history-button">Очистить</button>
         <input type="text" id="question" placeholder="Задайте вопрос...">
         <button id="sendButton">Отправить</button>
     </footer>
-    <p style="font-size: 12px; color: #ccc; text-align: center">Последняя пересборка базы: {{last_updated}}</p>
+    <p style="font-size: 12px; color: #ccc; text-align: center; margin: 0 0 5px 0;">Последняя пересборка базы: {{last_updated}}</p>
 
     <!-- Панель администратора -->
     <div class="admin-panel" id="adminPanel" style="display: none;">
@@ -241,7 +371,7 @@
         </details>
     </div>
 
-    <div id="sources-container" style="width: 90%; max-width: 900px; margin: 10px auto;"></div>
+    <div id="sources-container"></div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -250,6 +380,24 @@
             const questionInput = document.getElementById('question');
             const clearHistoryButton = document.getElementById('clearHistoryButton');
             const sourcesContainer = document.getElementById('sources-container');
+
+            // Устанавливаем фокус на поле ввода после загрузки
+            setTimeout(() => {
+                questionInput.focus();
+            }, 500);
+
+            // Исправление мобильной высоты для полноценного отображения
+            function setViewportHeight() {
+                const vh = window.innerHeight * 0.01;
+                document.documentElement.style.setProperty('--vh', `${vh}px`);
+            }
+
+            // Устанавливаем высоту при загрузке
+            setViewportHeight();
+
+            // Пересчитываем при изменении размера или ориентации
+            window.addEventListener('resize', setViewportHeight);
+            window.addEventListener('orientationchange', setViewportHeight);
 
             // Элементы панели администратора
             const adminPanel = document.getElementById('adminPanel');
@@ -284,7 +432,7 @@
                     }
 
                     // Отправляем запрос на проверку пароля
-                    const response = await fetch('/admin-proxy.php', {
+                    const response = await fetch('/chatbot-proxy.php', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded'
@@ -339,7 +487,7 @@
                     rebuildStatus.textContent = 'Выполняется пересборка базы знаний...';
                     rebuildStatus.className = 'admin-status warning-text';
 
-                    const response = await fetch('/admin-proxy.php', {
+                    const response = await fetch('/chatbot-proxy.php', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded'
@@ -491,6 +639,7 @@
 
                 appendMessage(q, 'user');
                 questionInput.value = '';
+                questionInput.blur(); // Убираем фокус с поля ввода, чтобы скрыть клавиатуру на мобильных
 
                 const botMsg = document.createElement('div');
                 botMsg.className = 'message bot';
@@ -524,6 +673,11 @@
                 }
 
                 chat.scrollTop = chat.scrollHeight;
+
+                // Возвращаем фокус на поле ввода после короткой задержки
+                setTimeout(() => {
+                    questionInput.focus();
+                }, 300);
             }
 
             sendButton.addEventListener('click', ask);
@@ -531,8 +685,20 @@
                 if (e.key === 'Enter') ask();
             });
 
+            // Исправление проблемы с высотой viewport на мобильных устройствах при появлении виртуальной клавиатуры
+            const originalHeight = window.innerHeight;
+            window.addEventListener('resize', function() {
+                if (window.innerHeight < originalHeight) {
+                    // Клавиатура открыта
+                    document.body.style.height = window.innerHeight + 'px';
+                } else {
+                    // Клавиатура закрыта
+                    document.body.style.height = '100vh';
+                }
+            });
+
             // Добавляем приветственное сообщение при загрузке страницы
-            appendMessage('Бот: Здравствуйте! Я юридический консультант. Чем я могу вам помочь?', 'bot');
+            appendMessage('Бот: Здравствуйте! Я консультант по банковскому и финансовому законодательству Казахстана. Чем я могу вам помочь?', 'bot');
         });
     </script>
 </body>
