@@ -164,18 +164,15 @@ def clean_old_sessions():
 # События приложения
 @app.on_event("startup")
 async def startup_event():
-    """При запуске приложения проверяем наличие индекса"""
     print("Запуск приложения...")
-    if not os.path.exists(INDEX_PATH):
-        os.makedirs(INDEX_PATH, exist_ok=True)
+    os.makedirs(INDEX_PATH, exist_ok=True)
 
-    if not os.path.exists(os.path.join(INDEX_PATH, "index.faiss")):
-        print("Индекс не найден. Загружаем из GitHub...")
-        download_index_from_github()
-    else:
-        print("Индекс найден и готов к использованию")
+    # Принудительно загружаем индекс при каждом запуске
+    print("Принудительная загрузка индекса из GitHub...")
+    download_index_from_github(force=True)
 
     print("Приложение запущено и готово к работе!")
+
 
 
 # Эндпоинты
