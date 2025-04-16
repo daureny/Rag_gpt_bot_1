@@ -30,7 +30,6 @@ from langchain.chains import ConversationalRetrievalChain
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-
 load_dotenv()
 
 # Создаем приложение FastAPI с подробными логами
@@ -67,7 +66,7 @@ if not os.path.exists(static_dir):
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 print(f"Статические файлы монтированы из директории: {static_dir}")
 
-INDEX_PATH = "/data/faiss_index" # Mounted disk on Render
+INDEX_PATH = "/data/faiss_index"  # Mounted disk on Render
 LAST_UPDATED_FILE = "last_updated.txt"
 LOG_FILE = "rebuild_log.txt"
 chunk_store = {}
@@ -113,13 +112,67 @@ def download_documents_from_github():
         print(f"Ошибка при клонировании репозитория: {e}")
         return None
 
+
 def extract_title(text: str, filename: str) -> str:
-    lines = text.splitlines()[:5]
-    for line in lines:
-        if len(line.strip()) > 10 and any(
-                kw in line.upper() for kw in ["ЗАКОН", "ПРАВИЛ", "ПОСТАНОВЛ", "МСФО", "КОДЕКС", "РЕГУЛИРОВАНИЕ"]):
-            return f"{line.strip()} ({filename})"
-    return filename
+    try:
+        # Сначала пытаемся получить осмысленный заголовок из первых строк
+        lines = text.splitlines()[:10]  # Проверяем больше строк
+
+        # Ищем типичные паттерны заголовков документов
+        for line in lines:
+            line = line.strip()
+            if len(line.strip()) > 10 and any(
+                    kw in line.upper() for kw in ["ЗАКОН", "ПРАВИЛ", "ПОСТАНОВЛ", "МСФО", "КОДЕКС", "РЕГУЛИРОВАНИЕ",
+                                                  "ИНСТРУКЦ", "ПОЛОЖЕНИ", "ТРЕБОВАНИ"]):
+                return f"{line} ({filename})"
+
+        # Если паттерн не найден, ищем первую непустую, достаточно длинную строку
+        for line in lines:
+            line = line.strip()
+            if len(line) > 20:  # Убедимся, что это существенная строка
+                return f"{line[:100]}... ({filename})"
+
+        # Запасной вариант - просто имя файла с пометкой, что это действительный документ
+        return f"Документ: {filename}"
+    except Exception as e:
+        print(f"Ошибка при извлечении заголовка из {filename}: {e}")
+        return f"Документ: {filename}"
+
+
+def save_last_updated(message=""):
+    """Сохраняет информацию о последнем обновлении в нескольких местах"""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    update_text = timestamp
+    if message:
+        update_text += f" ({message})"
+
+    # Сохраняем в корне проекта
+    try:
+        with open(LAST_UPDATED_FILE, "w", encoding="utf-8") as f:
+            f.write(update_text)
+        print(f"Информация о последнем обновлении сохранена в {LAST_UPDATED_FILE}")
+    except Exception as e:
+        print(f"Ошибка при сохранении информации об обновлении в {LAST_UPDATED_FILE}: {e}")
+
+    # Сохраняем в директории индекса
+    try:
+        index_updated_file = os.path.join(INDEX_PATH, LAST_UPDATED_FILE)
+        with open(index_updated_file, "w", encoding="utf-8") as f:
+            f.write(update_text)
+        print(f"Информация о последнем обновлении сохранена в {index_updated_file}")
+    except Exception as e:
+        print(f"Ошибка при сохранении информации об обновлении в {index_updated_file}: {e}")
+
+    # Создаем файл с дополнительной информацией о сборке
+    try:
+        build_info_file = os.path.join(INDEX_PATH, "build_info.txt")
+        with open(build_info_file, "w", encoding="utf-8") as f:
+            f.write(f"Дата сборки: {timestamp}\n")
+            f.write(f"Сервер: {os.environ.get('RENDER_SERVICE_NAME', 'local')}\n")
+            f.write(f"Дополнительная информация: {message}\n")
+        print(f"Информация о сборке сохранена в {build_info_file}")
+    except Exception as e:
+        print(f"Ошибка при сохранении информации о сборке: {e}")
 
 
 # 1. Разделите процесс индексации на части
@@ -154,7 +207,7 @@ def build_combined_txt():
 
 
 def _run_indexing_process():
-    """Выполняет индексацию в фоновом режиме"""
+    """Выполняет индексацию в фоновом режиме с улучшенной обработкой ошибок"""
     try:
         # Обновляем прогресс
         def update_progress(percent, message):
@@ -167,22 +220,52 @@ def _run_indexing_process():
         # Загружаем документы из GitHub
         github_docs_path = download_documents_from_github()
         if not github_docs_path:
-            update_progress(100, "Ошибка: не удалось загрузить документы")
-            return
+            print("ERROR: GitHub документы не загружены. Проверяем локальную папку docs...")
+            # Если не удалось загрузить из GitHub, используем локальную папку
+            if os.path.exists("docs") and os.path.isdir("docs"):
+                github_docs_path = "docs"
+                print("Найдена локальная папка docs, используем её.")
+            else:
+                update_progress(100, "Ошибка: не удалось загрузить документы")
+                _create_empty_index()
+                return
 
         # Определяем путь к документам
+        print(f"Проверка структуры пути: {github_docs_path}")
+        if os.path.exists(github_docs_path):
+            print(f"Путь существует: {github_docs_path}")
+            if os.path.isdir(github_docs_path):
+                print(f"Путь является директорией")
+                contents = os.listdir(github_docs_path)
+                print(f"Содержимое директории: {contents}")
+            else:
+                print(f"Путь НЕ является директорией!")
+        else:
+            print(f"Путь НЕ существует: {github_docs_path}")
+            update_progress(100, "Ошибка: указанный путь не существует")
+            return
+
         repo_docs_path = os.path.join(github_docs_path, "docs")
         if os.path.exists(repo_docs_path) and os.path.isdir(repo_docs_path):
             docs_path = Path(repo_docs_path)
+            print(f"Используем путь к документам: {docs_path}")
         else:
             docs_path = Path(github_docs_path)
+            print(f"Используем корневой путь для документов: {docs_path}")
 
         update_progress(15, "Сканирование файлов")
 
-        # Получаем все файлы
-        all_files = list(docs_path.glob("*.*"))
+        # Получаем все файлы с подробным логированием
+        try:
+            all_files = list(docs_path.glob("*.*"))
+            print(f"Найдено {len(all_files)} файлов: {[f.name for f in all_files]}")
+        except Exception as e:
+            print(f"Ошибка при сканировании файлов: {e}")
+            all_files = []
+
         supported_extensions = [".pdf", ".docx", ".txt", ".html"]
         files_to_process = [f for f in all_files if f.suffix.lower() in supported_extensions]
+        print(f"Файлы для обработки: {[f.name for f in files_to_process]}")
 
         # Если нет файлов, создаем пустой индекс
         if not files_to_process:
@@ -210,7 +293,8 @@ def _run_indexing_process():
             batch_docs = []
             for file in batch:
                 try:
-                    # Логика загрузки файлов (как у вас в оригинальном коде)
+                    print(f"Обработка файла: {file.name}")
+                    # Логика загрузки файлов
                     if file.suffix == ".txt":
                         loader = TextLoader(str(file), encoding="utf-8")
                     elif file.suffix == ".pdf":
@@ -220,14 +304,17 @@ def _run_indexing_process():
                     elif file.suffix == ".html":
                         loader = UnstructuredHTMLLoader(str(file))
                     else:
+                        print(f"Пропуск неподдерживаемого формата: {file.suffix}")
                         continue
 
                     pages = loader.load()
+                    print(f"Загружено страниц: {len(pages)}")
                     for page in pages:
                         source_title = extract_title(page.page_content, file.name)
                         page.metadata["source"] = source_title
                         batch_docs.append(page)
                         all_docs.append(page)
+                    print(f"Документ успешно обработан: {file.name}")
 
                 except Exception as e:
                     print(f"Ошибка при обработке {file.name}: {e}")
@@ -235,6 +322,7 @@ def _run_indexing_process():
 
             # Если в батче есть документы, создаем временный индекс
             if batch_docs:
+                print(f"Создание временного индекса для батча {batch_index} ({len(batch_docs)} документов)")
                 # Разбиваем на чанки
                 splitter = RecursiveCharacterTextSplitter(
                     chunk_size=1000,
@@ -243,10 +331,12 @@ def _run_indexing_process():
                 )
 
                 texts = splitter.split_documents(batch_docs)
+                print(f"Разбито на {len(texts)} чанков")
 
                 # Сохраняем во временный индекс
                 batch_db = FAISS.from_documents(texts, embeddings)
                 batch_db.save_local(os.path.join(temp_index_path, f"batch_{batch_index}"))
+                print(f"Временный индекс для батча {batch_index} сохранен")
 
         # Объединяем все временные индексы
         update_progress(85, "Объединение индексов")
@@ -256,6 +346,7 @@ def _run_indexing_process():
             _create_empty_index()
             return
 
+        print(f"Финальная обработка, всего документов: {len(all_docs)}")
         # Финальная обработка и создание индекса
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
@@ -264,30 +355,36 @@ def _run_indexing_process():
         )
 
         texts = splitter.split_documents(all_docs)
+        print(f"Финальное разбиение на {len(texts)} чанков")
         for doc in texts:
             doc.metadata["id"] = str(uuid.uuid4())
             chunk_store[doc.metadata["id"]] = doc.page_content
 
+        print("Создание итогового FAISS индекса")
         db = FAISS.from_documents(texts, embeddings)
         db.save_local(INDEX_PATH)
+        print(f"Индекс сохранен в {INDEX_PATH}")
 
         # Очистка временных файлов
         update_progress(95, "Очистка временных файлов")
         import shutil
         shutil.rmtree(temp_index_path, ignore_errors=True)
 
-        if github_docs_path:
+        if github_docs_path and github_docs_path != "docs":
             shutil.rmtree(github_docs_path, ignore_errors=True)
 
-        # Запись информации о последнем обновлении
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with open(LAST_UPDATED_FILE, "w", encoding="utf-8") as f:
-            f.write(timestamp)
+        # Сохраняем информацию о последнем обновлении
+        save_last_updated("индекс успешно создан")
 
         update_progress(100, "Индексация завершена")
 
     except Exception as e:
-        print(f"Ошибка в фоновой индексации: {e}")
+        error_msg = f"Ошибка в фоновой индексации: {e}"
+        print(error_msg)
+        try:
+            save_last_updated(f"ошибка: {str(e)}")
+        except:
+            pass
         with open(os.path.join(INDEX_PATH, "progress.txt"), "w") as f:
             f.write(f"100,Ошибка: {str(e)}")
 
@@ -297,14 +394,23 @@ def _create_empty_index():
     try:
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
         from langchain.schema.document import Document
-        empty_doc = Document(page_content="Empty index", metadata={"source": "Empty", "id": str(uuid.uuid4())})
+
+        # Создаем более информативный документ вместо пустого
+        empty_doc = Document(
+            page_content="Это пустой индекс. Пожалуйста, добавьте документы в репозиторий или выполните пересборку базы.",
+            metadata={
+                "source": "Системное сообщение",
+                "id": str(uuid.uuid4())
+            }
+        )
+
         db = FAISS.from_documents([empty_doc], embeddings)
         db.save_local(INDEX_PATH)
 
-        # Запись информации о последнем обновлении
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with open(LAST_UPDATED_FILE, "w", encoding="utf-8") as f:
-            f.write(timestamp + " (пустой индекс)")
+        # Сохраняем информацию о последнем обновлении
+        save_last_updated("пустой индекс")
+
+        print("Создан пустой индекс")
     except Exception as e:
         print(f"Ошибка при создании пустого индекса: {e}")
 
@@ -342,6 +448,51 @@ def index_status():
         return {"status": "unknown", "percent": 0, "message": "Статус индексации неизвестен"}
     except Exception as e:
         return {"status": "error", "percent": 0, "message": f"Ошибка: {str(e)}"}
+
+
+# Добавление нового эндпоинта для получения даты последнего обновления
+@app.post("/get-last-updated")
+def get_last_updated():
+    """Возвращает информацию о последнем обновлении базы знаний"""
+    try:
+        # Проверяем несколько возможных путей к файлу
+        locations = [
+            LAST_UPDATED_FILE,
+            os.path.join(INDEX_PATH, LAST_UPDATED_FILE),
+            "last_updated.txt",
+            "/data/last_updated.txt"
+        ]
+
+        for location in locations:
+            if os.path.exists(location):
+                with open(location, "r", encoding="utf-8") as f:
+                    last_updated = f.read().strip()
+                    return {
+                        "status": "success",
+                        "last_updated": last_updated,
+                        "source": location
+                    }
+
+        # Если нигде не нашли, создаем новый файл
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            save_last_updated("файл создан автоматически")
+            return {
+                "status": "success",
+                "last_updated": timestamp + " (файл создан автоматически)",
+                "source": "generated"
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Не удалось найти или создать файл с информацией: {str(e)}",
+                "last_updated": timestamp + " (восстановлено из системного времени)"
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Ошибка при получении информации: {str(e)}"
+        }
 
 
 @app.post("/github-webhook")
@@ -389,6 +540,7 @@ async def github_webhook(request: Request):
 
         return {"status": "error", "message": error_msg}
 
+
 def load_vectorstore():
     """Загружает векторное хранилище, создавая его при необходимости"""
     print("Попытка загрузки векторного хранилища...")
@@ -431,11 +583,12 @@ def load_vectorstore():
             print("Создаем минимальный рабочий индекс...")
             # Создаем минимальный индекс с одним документом
             embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-            empty_texts = [{"page_content": "Индекс пуст или поврежден", "metadata": {"source": "Empty"}}]
+            empty_texts = [{"page_content": "Индекс пуст или поврежден", "metadata": {"source": "Системное сообщение"}}]
             db = FAISS.from_texts([t["page_content"] for t in empty_texts], embeddings,
-                                 metadatas=[t["metadata"] for t in empty_texts])
+                                  metadatas=[t["metadata"] for t in empty_texts])
             db.save_local(INDEX_PATH)
             return db
+
 
 def clean_old_sessions():
     """Очищает старые сессии для экономии памяти"""
@@ -451,6 +604,7 @@ def clean_old_sessions():
             del session_memories[session_id]
         if session_id in session_last_activity:
             del session_last_activity[session_id]
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -469,14 +623,38 @@ async def startup_event():
 
     print("Приложение запущено и готово к работе!")
 
+
 @app.get("/", response_class=HTMLResponse)
 def chat_ui():
     try:
         print("Запрос к главной странице...")
+
+        # Улучшенная обработка даты последнего обновления
         last_updated = "Неизвестно"
-        if os.path.exists(LAST_UPDATED_FILE):
-            with open(LAST_UPDATED_FILE, "r", encoding="utf-8") as f:
-                last_updated = f.read().strip()
+        try:
+            # Проверяем несколько возможных путей к файлу
+            locations = [
+                LAST_UPDATED_FILE,
+                os.path.join(INDEX_PATH, LAST_UPDATED_FILE),
+                "last_updated.txt",
+                "/data/last_updated.txt"
+            ]
+
+            for location in locations:
+                if os.path.exists(location):
+                    with open(location, "r", encoding="utf-8") as f:
+                        last_updated = f.read().strip()
+                        print(f"Найден файл с датой обновления: {location} -> {last_updated}")
+                        break
+
+            if last_updated == "Неизвестно":
+                print("Файл с датой обновления не найден")
+                # Создаем с текущей датой
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                save_last_updated("файл создан автоматически")
+                last_updated = timestamp + " (создан автоматически)"
+        except Exception as e:
+            print(f"Ошибка при чтении даты обновления: {e}")
 
         # Проверка наличия HTML шаблона
         html_path = "static/index_chat.html"
@@ -488,7 +666,7 @@ def chat_ui():
         with open(html_path, "r", encoding="utf-8") as f:
             html_template = f.read()
 
-        print("Главная страница успешно загружена")
+        print(f"Главная страница успешно загружена. Дата обновления: {last_updated}")
         return HTMLResponse(content=html_template.replace("{{last_updated}}", last_updated))
     except Exception as e:
         error_msg = f"Ошибка при загрузке главной страницы: {str(e)}"
@@ -497,6 +675,7 @@ def chat_ui():
             content=f"<html><body><h1>Ошибка</h1><p>{error_msg}</p></body></html>",
             status_code=500
         )
+
 
 @app.post("/ask")
 async def ask(q: str = Form(...), session_id: str = Cookie(None), response: Response = None):
@@ -689,10 +868,12 @@ async def ask(q: str = Form(...), session_id: str = Cookie(None), response: Resp
             "sources": ""
         }, status_code=500)
 
+
 @app.get("/ping")
 def ping():
     """Простой эндпоинт для проверки, что сервер работает"""
     return {"status": "ok", "message": "Сервер работает"}
+
 
 @app.get("/test-openai")
 async def test_openai():
@@ -716,6 +897,7 @@ async def test_openai():
             "status": "error",
             "message": f"Ошибка при вызове OpenAI API: {str(e)}"
         }
+
 
 @app.post("/test-search")
 async def test_search(q: str = Form(...)):
@@ -744,6 +926,7 @@ async def test_search(q: str = Form(...)):
             "message": f"Ошибка при тестировании поиска: {str(e)}"
         }
 
+
 @app.get("/config")
 def check_config():
     """Проверяет базовую конфигурацию сервера"""
@@ -757,6 +940,7 @@ def check_config():
         "active_sessions": len(session_memories)
     }
     return config
+
 
 @app.post("/rebuild")
 async def rebuild_index(admin_token: str = Header(None)):
@@ -792,6 +976,7 @@ async def rebuild_index(admin_token: str = Header(None)):
             "message": error_msg
         }, status_code=500)
 
+
 @app.post("/clear-session")
 def clear_session(session_id: str = Cookie(None), response: Response = None):
     """Очищает историю сессии"""
@@ -800,6 +985,7 @@ def clear_session(session_id: str = Cookie(None), response: Response = None):
         return {"status": "success", "message": "История диалога очищена"}
     else:
         return {"status": "error", "message": "Сессия не найдена"}
+
 
 @app.get("/debug-pdf-loading")
 def debug_pdf_loading():
@@ -845,6 +1031,7 @@ def debug_pdf_loading():
 
     return pdf_diagnostics
 
+
 @app.get("/diagnose-vectorization")
 def diagnose_vectorization():
     """Диагностика процесса векторизации документов"""
@@ -878,6 +1065,7 @@ def diagnose_vectorization():
         }
     except Exception as e:
         return {"error": str(e)}
+
 
 # Код для запуска приложения
 if __name__ == "__main__":

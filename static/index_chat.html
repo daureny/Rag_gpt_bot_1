@@ -5,39 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 
-    <title>Виртуальный консультант</title>
+    <title>Бот-консультант</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             background-color: #121212;
             color: white;
             font-family: 'Inter', sans-serif;
-
             display: flex;
             flex-direction: column;
             align-items: center;
             margin: 0;
             padding: 0;
             height: 100vh;
+            overscroll-behavior: none;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
         }
         header {
-            padding: 20px;
-            font-size: 1.8rem;
+            padding: 10px;
+            font-size: 1.4rem;
             font-weight: bold;
             text-align: center;
+            width: 100%;
+            box-sizing: border-box;
         }
         #chat {
-            width: 90%;
+            width: 95%;
             max-width: 900px;
             flex: 1;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            padding: 10px;
+            padding: 10px 5px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
         }
         .message {
             padding: 10px 15px;
             border-radius: 15px;
-            max-width: 70%;
+            max-width: 85%;
             margin: 5px 0;
             white-space: pre-wrap;
             word-break: break-word;
@@ -47,11 +58,13 @@
             background-color: #007bff;
             color: white;
             align-self: flex-end;
+            margin-right: 5px;
         }
         .bot {
             background-color: #1e1e1e;
             color: #a2f5a2;
             align-self: flex-start;
+            margin-left: 5px;
         }
         /* Добавляем стили для абзацев и списков */
         .bot p {
@@ -68,14 +81,15 @@
             margin-bottom: 3px;
         }
         footer {
-            width: 90%;
+            width: 95%;
             max-width: 900px;
-            padding: 10px;
+            padding: 10px 5px;
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+            gap: 5px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
         }
-        input[type=text] {
+        input[type=text], input[type=password] {
             flex: 1;
             padding: 10px;
             font-size: 1rem;
@@ -85,92 +99,746 @@
             color: white;
         }
         button {
-            padding: 10px 20px;
+            padding: 10px 15px;
             background-color: #28a745;
             border: none;
             border-radius: 8px;
             color: white;
             font-weight: bold;
             cursor: pointer;
+            white-space: nowrap;
         }
         button:hover {
             background-color: #218838;
         }
-        .logo-small {
-            height: 80px;
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            opacity: 0.7;
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
         }
+
         details {
             margin-top: 10px;
             background-color: #222;
             padding: 10px;
             border-radius: 8px;
+            width: 100%;
         }
+
+        /* Стили для панели администратора */
+        .admin-panel {
+            max-width: 95%;
+            margin: 5px auto;
+            text-align: center;
+        }
+
+        .admin-panel summary {
+            cursor: pointer;
+            color: #aaa;
+            font-size: 12px;
+            padding: 5px;
+            display: inline-block;
+        }
+
+        .admin-panel-content {
+            margin-top: 10px;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #1e1e1e;
+            text-align: left;
+        }
+
+        .admin-login-form, .admin-controls {
+            padding: 10px;
+        }
+
+        .admin-status {
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .error-text {
+            color: #dc3545;
+        }
+
+        .success-text {
+            color: #28a745;
+        }
+
+        .warning-text {
+            color: #ffc107;
+        }
+
+        .admin-button {
+            background-color: #6c757d;
+            margin-top: 10px;
+        }
+
+        .rebuild-button {
+            background-color: #28a745;
+        }
+
+        hr.divider {
+            margin: 15px 0;
+            border-color: #444;
+            border-style: solid;
+            border-width: 1px 0 0 0;
+        }
+
+        /* Стили для источников информации */
+        #sources-container details {
+            margin-bottom: 8px;
+        }
+
+        #sources-container summary {
+            cursor: pointer;
+            padding: 5px;
+            background-color: #333;
+            border-radius: 4px;
+        }
+
+        #sources-container pre {
+            margin: 8px 0 0 0;
+            padding: 10px;
+            background-color: #1a1a1a;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
         }
+
+        /* Стили для очистки истории */
+        .clear-history-button {
+            background-color: #6c757d;
+            font-size: 12px;
+            padding: 6px 8px;
+            margin-right: 5px;
+        }
+
+        /* Оптимизация для мобильных устройств */
+        @media screen and (max-width: 600px) {
+            header {
+                padding: 8px;
+                font-size: 1.2rem;
+            }
+
+            #chat {
+                width: 100%;
+                padding: 5px;
+                margin: 0;
+            }
+
+            .message {
+                max-width: 80%;
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+
+            .user {
+                margin-right: 10px;
+            }
+
+            .bot {
+                margin-left: 10px;
+            }
+
+            footer {
+                width: 100%;
+                padding: 8px 5px;
+                gap: 3px;
+                margin: 0;
+            }
+
+            button {
+                padding: 8px 10px;
+                font-size: 14px;
+            }
+
+            input[type=text], input[type=password] {
+                padding: 8px;
+                font-size: 14px;
+            }
+
+            .clear-history-button {
+                padding: 6px;
+                font-size: 11px;
+            }
+
+            #sources-container {
+                width: 100%;
+                font-size: 13px;
+            }
+
+            .admin-panel-content {
+                padding: 10px;
+            }
+
+            .bot p {
+                margin: 0 0 8px 0;
+            }
+
+            .bot ul, .bot ol {
+                padding-left: 15px;
+            }
+        }
+
+        /* Запрет масштабирования при фокусе на полях ввода в iOS */
+        @media screen and (max-width: 600px) {
+            input[type=text], input[type=password] {
+                font-size: 16px;
+            }
+        }
+
+        /* Исправление проблемы с fixed позиционированием на мобильных */
+        @supports (-webkit-touch-callout: none) {
+            /* CSS для iOS-устройств */
+            body, html {
+                height: -webkit-fill-available;
+            }
+
+            body {
+                min-height: -webkit-fill-available;
+            }
+        }
+
+        /* Корректировка для virtual keyboard */
+        @media screen and (max-height: 400px) and (max-width: 600px) {
+            header {
+                display: none;
+            }
+
+            #chat {
+                max-height: 70vh;
+            }
+        }
+
+        #sources-container {
+            width: 95%;
+            max-width: 900px;
+            margin: 5px auto 15px auto;
+            overflow-x: auto;
+            padding: 0 5px;
+            box-sizing: border-box;
+        }
+
+        @media screen and (max-width: 600px) {
+            #sources-container {
+                width: 100%;
+                padding: 0 5px;
+                margin: 5px 0 10px 0;
+            }
+        }
     </style>
+    <!-- Добавьте этот код перед закрывающим тегом </header> -->
+  <div id="indexStatus" class="index-status" style="display: none;">
+      <div class="status-indicator"></div>
+      <span id="indexStatusText">Проверка статуса индексации...</span>
+  </div>
+
+  <!-- Добавьте этот код в панель администратора, внутри div с id="adminControls" -->
+  <div class="index-progress-container" style="display: none; margin-top: 15px;">
+      <p style="margin: 5px 0; color: #ddd; font-size: 14px;">Прогресс индексации:</p>
+      <div class="progress-bar-container">
+          <div class="progress-bar" id="indexProgressBar"></div>
+      </div>
+      <p id="indexProgressText" class="admin-status" style="margin-top: 5px;">0%</p>
+  </div>
+
+  <!-- Добавьте этот код перед закрывающим тегом </div> в панели администратора -->
+  <button id="checkIndexButton" class="admin-button" style="margin-top: 10px; background-color: #17a2b8;">Проверить статус индексации</button>
+
+  <!-- Добавьте эти стили в секцию <style> -->
+  .index-status {
+      font-size: 12px;
+      color: #aaa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 5px;
+  }
+
+  .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #ffc107;
+      margin-right: 8px;
+  }
+
+  .status-indicator.complete {
+      background-color: #28a745;
+  }
+
+  .status-indicator.error {
+      background-color: #dc3545;
+  }
+
+  .progress-bar-container {
+      width: 100%;
+      height: 20px;
+      background-color: #333;
+      border-radius: 10px;
+      overflow: hidden;
+  }
+
+  .progress-bar {
+      height: 100%;
+      width: 0%;
+      background-color: #17a2b8;
+      transition: width 0.5s ease;
+  }
+
+  /* Стили для кнопки загрузки файлов */
+  .file-upload-container {
+      margin: 10px 0;
+  }
+
+  .file-upload-button {
+      background-color: #17a2b8;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-block;
+      font-size: 14px;
+      margin-bottom: 10px;
+  }
+
+  .file-upload-button:hover {
+      background-color: #138496;
+  }
+
+  input[type="file"] {
+      display: none;
+  }
+
+  .file-name {
+      display: inline-block;
+      margin-left: 10px;
+      font-size: 14px;
+      color: #aaa;
+  }
+
+  /* Кнопка вверх для длинных диалогов */
+  .scroll-top-button {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 40px;
+      height: 40px;
+      background-color: #28a745;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 1000;
+      font-size: 20px;
+  }
+
+  .scroll-top-button.visible {
+      opacity: 0.7;
+  }
+
+  .scroll-top-button:hover {
+      opacity: 1;
+  }
+
+  /* Адаптивность для больших диалогов */
+  @media screen and (min-height: 700px) {
+      #chat {
+          max-height: 70vh;
+      }
+  }
+
+  /* Улучшенная доступность */
+  .message {
+      position: relative;
+  }
+
+  .message-time {
+      position: absolute;
+      bottom: 2px;
+      right: 5px;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.5);
+  }
+
+  /* Тема оформления */
+  .theme-switcher {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 20px;
+      cursor: pointer;
+      color: #ccc;
+      z-index: 100;
+  }
+
+  body.light-theme {
+      background-color: #f5f5f5;
+      color: #333;
+  }
+
+  body.light-theme .message.bot {
+      background-color: #e9e9e9;
+      color: #333;
+  }
+
+  body.light-theme #question,
+  body.light-theme input[type=password] {
+      background: #fff;
+      color: #333;
+      border: 1px solid #ddd;
+  }
+
+  body.light-theme .admin-panel-content {
+      background-color: #e9e9e9;
+  }
+
+  body.light-theme #sources-container details {
+      background-color: #e0e0e0;
+  }
+
+  body.light-theme #sources-container summary {
+      background-color: #d0d0d0;
+  }
+
+  body.light-theme #sources-container pre {
+      background-color: #f0f0f0;
+      color: #333;
+  }
+
+  /* Анимация печати */
+  .typing-animation::after {
+      content: '';
+      animation: typing 1.5s infinite;
+  }
+
+  @keyframes typing {
+      0% { content: ''; }
+      25% { content: '.'; }
+      50% { content: '..'; }
+      75% { content: '...'; }
+  }
+
+  /* Улучшенная обработка изображений */
+  .bot img {
+      max-width: 100%;
+      border-radius: 8px;
+      margin: 10px 0;
+  }
+
+  /* Стили для быстрых ответов */
+  .quick-replies {
+      display: flex;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      gap: 5px;
+  }
+
+  .quick-reply {
+      background-color: #444;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 15px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+  }
+
+  .quick-reply:hover {
+      background-color: #555;
+  }
+
+  /* Выделение кода */
+  .code-block {
+      background-color: #1e1e1e;
+      padding: 10px;
+      border-radius: 5px;
+      font-family: monospace;
+      overflow-x: auto;
+      margin: 10px 0;
+      border-left: 3px solid #28a745;
+  }
 </head>
 <body>
-    <header>💬 Виртуальный консультант</header>
+    <header>Бот-консультант</header>
     <div id="chat"></div>
     <footer>
+        <button id="clearHistoryButton" class="clear-history-button">Очистить</button>
         <input type="text" id="question" placeholder="Задайте вопрос...">
         <button id="sendButton">Отправить</button>
     </footer>
-    <p style="font-size: 12px; color: #ccc; text-align: center">Последняя пересборка базы: {{last_updated}}</p>
-    <img src="/static/logo.png" class="logo-small" alt="Bot Logo">
+    <p style="font-size: 12px; color: #ccc; text-align: center; margin: 0 0 5px 0;">Последняя пересборка базы: {{last_updated}}</p>
+
+    <!-- Панель администратора -->
+    <div class="admin-panel" id="adminPanel" style="display: none;">
+        <details>
+            <summary>Панель администратора</summary>
+            <div class="admin-panel-content">
+                <!-- Форма для входа администратора -->
+                <div class="admin-login-form" id="adminLoginForm">
+                    <p style="margin: 0 0 10px 0; color: #ddd; font-size: 14px;">Введите пароль администратора:</p>
+                    <input type="password" id="adminPassword" placeholder="Пароль администратора">
+                    <button id="adminLoginButton" class="admin-button">Войти</button>
+                    <p id="adminLoginStatus" class="admin-status error-text" style="display: none;"></p>
+                </div>
+
+                <!-- Элементы управления администратора (скрыты по умолчанию) -->
+                <div class="admin-controls" id="adminControls" style="display: none;">
+                    <p style="margin: 0 0 10px 0; color: #ddd; font-size: 14px;">Управление базой знаний:</p>
+                    <button id="rebuildButton" class="rebuild-button">Обновить базу знаний</button>
+                    <span id="rebuildStatus" class="admin-status" style="display: none; margin-left: 10px;"></span>
+
+                    <hr class="divider">
+
+                    <button id="adminLogoutButton" class="admin-button" style="font-size: 12px;">Выйти</button>
+                </div>
+            </div>
+        </details>
+    </div>
+
+    <div id="sources-container"></div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const chat = document.getElementById('chat');
             const sendButton = document.getElementById('sendButton');
             const questionInput = document.getElementById('question');
+            const clearHistoryButton = document.getElementById('clearHistoryButton');
+            const sourcesContainer = document.getElementById('sources-container');
+
+            // Устанавливаем фокус на поле ввода после загрузки
+            setTimeout(() => {
+                questionInput.focus();
+            }, 500);
+
+            // Исправление мобильной высоты для полноценного отображения
+            function setViewportHeight() {
+                const vh = window.innerHeight * 0.01;
+                document.documentElement.style.setProperty('--vh', `${vh}px`);
+            }
+
+            // Устанавливаем высоту при загрузке
+            setViewportHeight();
+
+            // Пересчитываем при изменении размера или ориентации
+            window.addEventListener('resize', setViewportHeight);
+            window.addEventListener('orientationchange', setViewportHeight);
+
+            // Элементы панели администратора
+            const adminPanel = document.getElementById('adminPanel');
+            const adminLoginForm = document.getElementById('adminLoginForm');
+            const adminControls = document.getElementById('adminControls');
+            const adminPassword = document.getElementById('adminPassword');
+            const adminLoginButton = document.getElementById('adminLoginButton');
+            const adminLoginStatus = document.getElementById('adminLoginStatus');
+            const adminLogoutButton = document.getElementById('adminLogoutButton');
+            const rebuildButton = document.getElementById('rebuildButton');
+            const rebuildStatus = document.getElementById('rebuildStatus');
+
+            // Показываем панель администратора
+            adminPanel.style.display = 'block';
+
+            // Проверяем, есть ли сохраненный токен администратора
+            const adminToken = localStorage.getItem('adminToken');
+            if (adminToken) {
+                // Если токен есть, сразу показываем панель управления
+                adminLoginForm.style.display = 'none';
+                adminControls.style.display = 'block';
+            }
+
+            // Обработчик кнопки входа администратора
+            adminLoginButton.addEventListener('click', async function() {
+                try {
+                    const password = adminPassword.value;
+                    if (!password) {
+                        adminLoginStatus.textContent = 'Введите пароль';
+                        adminLoginStatus.style.display = 'block';
+                        return;
+                    }
+
+                    // Отправляем запрос на проверку пароля
+                    const response = await fetch('/chatbot-proxy.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: 'action=login&password=' + encodeURIComponent(password)
+                    });
+
+                    const data = await response.json();
+
+                    if (data.status === 'success') {
+                        // Сохраняем токен и показываем панель управления
+                        localStorage.setItem('adminToken', data.token);
+                        adminLoginForm.style.display = 'none';
+                        adminControls.style.display = 'block';
+                        adminLoginStatus.style.display = 'none';
+                        adminPassword.value = '';
+                    } else {
+                        // Показываем ошибку
+                        adminLoginStatus.textContent = data.message || 'Ошибка авторизации';
+                        adminLoginStatus.style.display = 'block';
+                    }
+                } catch (error) {
+                    adminLoginStatus.textContent = 'Ошибка соединения с сервером';
+                    adminLoginStatus.style.display = 'block';
+                    console.error('Ошибка при входе:', error);
+                }
+            });
+
+            // Обработчик кнопки выхода
+            adminLogoutButton.addEventListener('click', function() {
+                localStorage.removeItem('adminToken');
+                adminControls.style.display = 'none';
+                adminLoginForm.style.display = 'block';
+            });
+
+            // Обработчик кнопки обновления базы знаний
+            rebuildButton.addEventListener('click', async function() {
+                try {
+                    const adminToken = localStorage.getItem('adminToken');
+                    if (!adminToken) {
+                        // Если токена нет, показываем сообщение об ошибке
+                        rebuildStatus.textContent = 'Необходимо авторизоваться';
+                        rebuildStatus.className = 'admin-status error-text';
+                        rebuildStatus.style.display = 'block';
+                        return;
+                    }
+
+                    // Меняем внешний вид кнопки
+                    rebuildButton.disabled = true;
+                    rebuildButton.textContent = 'Обновляем...';
+                    rebuildStatus.style.display = 'inline';
+                    rebuildStatus.textContent = 'Выполняется пересборка базы знаний...';
+                    rebuildStatus.className = 'admin-status warning-text';
+
+                    const response = await fetch('/chatbot-proxy.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: 'action=rebuild&token=' + encodeURIComponent(adminToken)
+                    });
+
+                    const data = await response.json();
+
+                    if (data.status === 'success') {
+                        rebuildStatus.textContent = '✓ База знаний успешно обновлена!';
+                        rebuildStatus.className = 'admin-status success-text';
+
+                        // Обновляем время последнего обновления без перезагрузки страницы
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    } else {
+                        if (data.message && data.message.includes('Доступ запрещен')) {
+                            // Если токен устарел или недействителен
+                            localStorage.removeItem('adminToken');
+                            adminControls.style.display = 'none';
+                            adminLoginForm.style.display = 'block';
+                            rebuildStatus.textContent = 'Сессия истекла. Пожалуйста, авторизуйтесь снова.';
+                        } else {
+                            rebuildStatus.textContent = '✗ Ошибка: ' + data.message;
+                        }
+                        rebuildStatus.className = 'admin-status error-text';
+                    }
+                } catch (error) {
+                    rebuildStatus.textContent = '✗ Ошибка: не удалось выполнить запрос';
+                    rebuildStatus.className = 'admin-status error-text';
+                    console.error('Ошибка при обновлении базы:', error);
+                } finally {
+                    rebuildButton.disabled = false;
+                    rebuildButton.textContent = 'Обновить базу знаний';
+                }
+            });
+
+            // Обработчик клавиши Enter для поля ввода пароля
+            adminPassword.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    adminLoginButton.click();
+                }
+            });
+
+            // Обработчик кнопки очистки истории
+            clearHistoryButton.addEventListener('click', async function() {
+                if (confirm('Вы уверены, что хотите очистить историю диалога?')) {
+                    try {
+                        const response = await fetch('/chatbot-proxy.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            },
+                            body: 'action=clear_history'
+                        });
+
+                        const data = await response.json();
+
+                        if (data.status === 'success') {
+                            // Очищаем чат
+                            chat.innerHTML = '';
+                            // Добавляем приветственное сообщение
+                            appendMessage('Бот: История диалога очищена. Чем я могу помочь?', 'bot');
+                        } else {
+                            appendMessage('Бот: Не удалось очистить историю диалога. Пожалуйста, попробуйте позже.', 'bot');
+                        }
+                    } catch (error) {
+                        console.error('Ошибка при очистке истории:', error);
+                        appendMessage('Бот: Произошла ошибка при очистке истории.', 'bot');
+                    }
+                }
+            });
 
             // Новая функция для форматирования текста ответа
             function formatBotResponse(text) {
                 // Удаляем все HTML теги, кроме <br> для совместимости
                 text = text.replace(/<(?!br\s*\/?)[^>]+>/g, '');
-                
+
                 // Заменяем одиночные <br> на временный маркер
                 text = text.replace(/<br\s*\/?>/g, '§BREAK§');
-                
+
                 // Находим двойные переносы строк и заменяем их на маркеры конца/начала абзаца
                 text = text.replace(/§BREAK§§BREAK§/g, '§PARAGRAPH§');
-                
+
                 // Заменяем оставшиеся временные маркеры на <br>
                 text = text.replace(/§BREAK§/g, '<br>');
-                
+
                 // Разбиваем на абзацы
                 const paragraphs = text.split('§PARAGRAPH§');
-                
+
                 // Форматируем каждый абзац
                 const formattedParagraphs = paragraphs.map(paragraph => {
                     // Форматируем маркированные списки
                     paragraph = paragraph.replace(/^([-•])\s+(.+?)(<br>|$)/gm, '<li>$2</li>');
                     paragraph = paragraph.replace(/<br>([-•])\s+(.+?)(<br>|$)/g, '<br><li>$2</li>');
-                    
+
                     // Форматируем нумерованные списки
                     paragraph = paragraph.replace(/^(\d+)[.)][\s]+(.+?)(<br>|$)/gm, '<li>$2</li>');
                     paragraph = paragraph.replace(/<br>(\d+)[.)][\s]+(.+?)(<br>|$)/g, '<br><li>$2</li>');
-                    
+
                     // Если в абзаце есть элементы списка, оборачиваем их в <ul>
                     if (paragraph.includes('<li>')) {
                         paragraph = '<ul>' + paragraph + '</ul>';
                         // Удаляем лишние br внутри списков
                         paragraph = paragraph.replace(/<li>(.*?)<br><\/li>/g, '<li>$1</li>');
                     }
-                    
+
                     // Обрабатываем выделение текста
                     paragraph = paragraph.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
                     paragraph = paragraph.replace(/\*(.*?)\*/g, '<em>$1</em>');
-                    
+
                     return paragraph;
                 });
-                
+
                 // Оборачиваем каждый абзац в <p> и объединяем все вместе
                 return formattedParagraphs.map(p => `<p>${p}</p>`).join('');
             }
@@ -206,6 +874,7 @@
 
                 appendMessage(q, 'user');
                 questionInput.value = '';
+                questionInput.blur(); // Убираем фокус с поля ввода, чтобы скрыть клавиатуру на мобильных
 
                 const botMsg = document.createElement('div');
                 botMsg.className = 'message bot';
@@ -222,30 +891,406 @@
 
                     const data = await res.json();
                     botMsg.remove(); // Удаляем сообщение "Думаю..."
-                    
+
                     const text = data.answer || '⚠️ Ошибка: ответ не получен.';
                     appendMessage('Бот: ' + text, 'bot');
 
+                    // Очищаем контейнер с источниками перед добавлением новых
+                    sourcesContainer.innerHTML = '';
+
                     if (data.sources) {
-                        const sources = document.createElement('div');
-                        sources.innerHTML = '<br><b>🔎 Источники:</b><br>' + data.sources;
-                        sources.className = 'message bot';
-                        chat.appendChild(sources);
+                        sourcesContainer.innerHTML = '<b>🔎 Источники:</b><br>' + data.sources;
                     }
                 } catch (error) {
                     botMsg.remove();
                     appendMessage('Бот: ⚠️ Произошла ошибка при обработке запроса. Попробуйте позже.', 'bot');
                     console.error('Error:', error);
                 }
-                
+
                 chat.scrollTop = chat.scrollHeight;
+
+                // Возвращаем фокус на поле ввода после короткой задержки
+                setTimeout(() => {
+                    questionInput.focus();
+                }, 300);
             }
 
             sendButton.addEventListener('click', ask);
             questionInput.addEventListener('keypress', function (e) {
                 if (e.key === 'Enter') ask();
             });
+
+            // Исправление проблемы с высотой viewport на мобильных устройствах при появлении виртуальной клавиатуры
+            const originalHeight = window.innerHeight;
+            window.addEventListener('resize', function() {
+                if (window.innerHeight < originalHeight) {
+                    // Клавиатура открыта
+                    document.body.style.height = window.innerHeight + 'px';
+                } else {
+                    // Клавиатура закрыта
+                    document.body.style.height = '100vh';
+                }
+            });
+
+            // Добавляем приветственное сообщение при загрузке страницы
+            appendMessage('Бот: Здравствуйте! Я консультант по банковскому и финансовому законодательству Казахстана. Чем я могу вам помочь?', 'bot');
         });
+        // Функция для проверки статуса индексации
+async function checkIndexStatus() {
+try {
+    const response = await fetch('/chatbot-proxy.php?action=index_status');
+    const data = await response.json();
+
+    const statusIndicator = document.querySelector('.status-indicator');
+    const statusText = document.getElementById('indexStatusText');
+    const indexStatus = document.getElementById('indexStatus');
+
+    indexStatus.style.display = 'flex';
+
+    // Обновляем панель прогресса в админке если она открыта
+    const progressBar = document.getElementById('indexProgressBar');
+    const progressText = document.getElementById('indexProgressText');
+    const progressContainer = document.querySelector('.index-progress-container');
+
+    if (progressBar && data.percent !== undefined) {
+        progressBar.style.width = data.percent + '%';
+        progressText.textContent = data.percent + '% - ' + data.message;
+        progressContainer.style.display = 'block';
+    }
+
+    if (data.status === 'completed') {
+        statusIndicator.className = 'status-indicator complete';
+        statusText.textContent = 'Индексация завершена';
+
+        // Если процесс только что завершился, перезагружаем страницу через 2 секунды
+        if (window.lastIndexStatus === 'in_progress') {
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        }
+    } else if (data.status === 'in_progress') {
+        statusIndicator.className = 'status-indicator';
+        statusText.textContent = 'Индексация в процессе: ' + data.percent + '%';
+
+        // Проверяем снова через 5 секунд
+        setTimeout(checkIndexStatus, 5000);
+    } else if (data.status === 'error') {
+        statusIndicator.className = 'status-indicator error';
+        statusText.textContent = 'Ошибка индексации: ' + data.message;
+    } else {
+        statusIndicator.className = 'status-indicator';
+        statusText.textContent = 'Статус индексации: ' + data.message;
+    }
+
+    window.lastIndexStatus = data.status;
+} catch (error) {
+    console.error('Ошибка при проверке статуса индексации:', error);
+    document.getElementById('indexStatus').style.display = 'none';
+}
+}
+
+// Кнопка проверки статуса индексации
+const checkIndexButton = document.getElementById('checkIndexButton');
+if (checkIndexButton) {
+checkIndexButton.addEventListener('click', checkIndexStatus);
+}
+
+// Проверяем статус при загрузке страницы
+checkIndexStatus();
+
+// Добавляем кнопку прокрутки вверх
+const scrollTopButton = document.createElement('div');
+scrollTopButton.className = 'scroll-top-button';
+scrollTopButton.innerHTML = '↑';
+scrollTopButton.addEventListener('click', () => {
+chat.scrollTo({ top: 0, behavior: 'smooth' });
+});
+document.body.appendChild(scrollTopButton);
+
+// Показываем кнопку при прокрутке
+chat.addEventListener('scroll', () => {
+if (chat.scrollTop > 300) {
+    scrollTopButton.classList.add('visible');
+} else {
+    scrollTopButton.classList.remove('visible');
+}
+});
+
+// Добавляем переключатель темы
+const themeSwitcher = document.createElement('div');
+themeSwitcher.className = 'theme-switcher';
+themeSwitcher.innerHTML = '☀️';
+themeSwitcher.title = 'Переключить тему';
+document.body.appendChild(themeSwitcher);
+
+// Проверяем сохраненную тему
+if (localStorage.getItem('theme') === 'light') {
+document.body.classList.add('light-theme');
+themeSwitcher.innerHTML = '🌙';
+}
+
+// Обработчик переключения темы
+themeSwitcher.addEventListener('click', () => {
+document.body.classList.toggle('light-theme');
+if (document.body.classList.contains('light-theme')) {
+    localStorage.setItem('theme', 'light');
+    themeSwitcher.innerHTML = '🌙';
+} else {
+    localStorage.setItem('theme', 'dark');
+    themeSwitcher.innerHTML = '☀️';
+}
+});
+
+// Добавляем время к сообщениям
+function addTimeToMessage(messageElement) {
+const timeElement = document.createElement('span');
+timeElement.className = 'message-time';
+const now = new Date();
+timeElement.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+messageElement.appendChild(timeElement);
+}
+
+// Переопределяем функцию appendMessage для добавления времени
+const originalAppendMessage = appendMessage;
+appendMessage = function(text, sender = 'bot') {
+const msg = document.createElement('div');
+msg.className = `message ${sender}`;
+chat.appendChild(msg);
+
+// Добавляем метку времени
+addTimeToMessage(msg);
+
+// Применяем форматирование только к ответам бота
+if (sender === 'bot') {
+    // Анимация печати для бота
+    if (text.startsWith('Бот: ')) {
+        const botPrefix = 'Бот: ';
+        if (text.includes('Думаю...')) {
+            msg.innerHTML = botPrefix + '<span id="typing" class="typing-animation">Думаю</span>';
+        } else {
+            const responseText = text.substring(botPrefix.length);
+            const formattedText = formatBotResponse(responseText);
+            msg.innerHTML = botPrefix + formattedText;
+
+            // Добавляем быстрые ответы, если это подходящий контекст
+            if (responseText.includes('?') && !responseText.includes('Ошибка:')) {
+                addQuickReplies(msg);
+            }
+        }
+    } else {
+        msg.innerHTML = formatBotResponse(text);
+    }
+} else {
+    msg.textContent = text;
+}
+
+chat.scrollTop = chat.scrollHeight;
+};
+
+// Функция для добавления быстрых ответов
+function addQuickReplies(messageElement) {
+// Создаем несколько типичных быстрых ответов
+const replies = [
+    'Подробнее об этом',
+    'Спасибо, понятно',
+    'Пример применения',
+    'Что еще почитать?'
+];
+
+const quickRepliesDiv = document.createElement('div');
+quickRepliesDiv.className = 'quick-replies';
+
+replies.forEach(reply => {
+    const quickReply = document.createElement('div');
+    quickReply.className = 'quick-reply';
+    quickReply.textContent = reply;
+    quickReply.addEventListener('click', () => {
+        questionInput.value = reply;
+        ask();
+    });
+    quickRepliesDiv.appendChild(quickReply);
+});
+
+messageElement.appendChild(quickRepliesDiv);
+}
+
+// Расширенная функция форматирования кода
+function formatBotResponse(text) {
+// Выделение блоков кода
+text = text.replace(/```([^`]+)```/g, '<div class="code-block">$1</div>');
+
+// Остальной код форматирования остается без изменений
+// Удаляем все HTML теги, кроме <br> для совместимости
+text = text.replace(/<(?!br\s*\/?)[^>]+>/g, '');
+// Заменяем одиночные <br> на временный маркер
+text = text.replace(/<br\s*\/?>/g, '§BREAK§');
+// Находим двойные переносы строк и заменяем их на маркеры конца/начала абзаца
+text = text.replace(/§BREAK§§BREAK§/g, '§PARAGRAPH§');
+// Заменяем оставшиеся временные маркеры на <br>
+text = text.replace(/§BREAK§/g, '<br>');
+
+// Разбиваем на абзацы
+const paragraphs = text.split('§PARAGRAPH§');
+
+// Форматируем каждый абзац
+const formattedParagraphs = paragraphs.map(paragraph => {
+    // Проверяем, является ли это блоком кода
+    if (paragraph.includes('<div class="code-block">')) {
+        return paragraph;
+    }
+
+    // Форматируем маркированные списки
+    paragraph = paragraph.replace(/^([-•])\s+(.+?)(<br>|$)/gm, '<li>$2</li>');
+    paragraph = paragraph.replace(/<br>([-•])\s+(.+?)(<br>|$)/g, '<br><li>$2</li>');
+
+    // Форматируем нумерованные списки
+    paragraph = paragraph.replace(/^(\d+)[.)][\s]+(.+?)(<br>|$)/gm, '<li>$2</li>');
+    paragraph = paragraph.replace(/<br>(\d+)[.)][\s]+(.+?)(<br>|$)/g, '<br><li>$2</li>');
+
+    // Если в абзаце есть элементы списка, оборачиваем их в <ul>
+    if (paragraph.includes('<li>')) {
+        paragraph = '<ul>' + paragraph + '</ul>';
+        // Удаляем лишние br внутри списков
+        paragraph = paragraph.replace(/<li>(.*?)<br><\/li>/g, '<li>$1</li>');
+    }
+
+    // Обрабатываем выделение текста
+    paragraph = paragraph.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    paragraph = paragraph.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+    // Обрабатываем ссылки в формате Markdown
+    paragraph = paragraph.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+
+    return paragraph;
+});
+
+// Оборачиваем каждый абзац в <p> и объединяем все вместе
+return formattedParagraphs.map(p => `<p>${p}</p>`).join('');
+}
+
+// Добавление возможности загрузки файлов (если у вас есть такой функционал на бэкенде)
+function addFileUploadButton() {
+const fileUploadContainer = document.createElement('div');
+fileUploadContainer.className = 'file-upload-container';
+
+const fileUploadLabel = document.createElement('label');
+fileUploadLabel.className = 'file-upload-button';
+fileUploadLabel.textContent = 'Загрузить документ';
+
+const fileInput = document.createElement('input');
+fileInput.type = 'file';
+fileInput.id = 'documentUpload';
+fileInput.accept = '.pdf,.docx,.txt,.html';
+
+const fileName = document.createElement('span');
+fileName.className = 'file-name';
+
+fileUploadLabel.appendChild(fileInput);
+fileUploadContainer.appendChild(fileUploadLabel);
+fileUploadContainer.appendChild(fileName);
+
+// Вставляем перед панелью администратора
+const adminPanel = document.getElementById('adminPanel');
+document.body.insertBefore(fileUploadContainer, adminPanel);
+
+// Обработчик изменения файла
+fileInput.addEventListener('change', function() {
+    if (this.files && this.files[0]) {
+        fileName.textContent = this.files[0].name;
+
+        // Если у вас реализована загрузка файлов, здесь можно добавить код для отправки файла на сервер
+        // Например:
+        /*
+        const formData = new FormData();
+        formData.append('file', this.files[0]);
+
+        fetch('/chatbot-proxy.php?action=upload_document', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                appendMessage('Бот: Документ успешно загружен. Теперь вы можете задавать вопросы по его содержанию.', 'bot');
+            } else {
+                appendMessage('Бот: Не удалось загрузить документ. ' + data.message, 'bot');
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка при загрузке документа:', error);
+            appendMessage('Бот: Произошла ошибка при загрузке документа.', 'bot');
+        });
+        */
+
+        // Временное сообщение, пока функционал не реализован
+        appendMessage('Бот: Функция загрузки документов в разработке. Пожалуйста, задавайте вопросы по имеющейся базе знаний.', 'bot');
+    }
+});
+}
+
+// Раскомментируйте строку ниже, если вы хотите добавить функционал загрузки файлов
+// addFileUploadButton();
+
+// Улучшение доступности с помощью ARIA-атрибутов
+function enhanceAccessibility() {
+// Добавляем ARIA роли и метки
+chat.setAttribute('role', 'log');
+chat.setAttribute('aria-live', 'polite');
+chat.setAttribute('aria-label', 'История диалога');
+
+questionInput.setAttribute('aria-label', 'Введите ваш вопрос');
+sendButton.setAttribute('aria-label', 'Отправить вопрос');
+clearHistoryButton.setAttribute('aria-label', 'Очистить историю диалога');
+
+// Добавляем информацию для скринридеров
+const srOnly = document.createElement('span');
+srOnly.style.cssText = 'position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;';
+srOnly.setAttribute('id', 'sr-status');
+srOnly.setAttribute('aria-live', 'polite');
+document.body.appendChild(srOnly);
+
+// Функция для оповещения скринридеров о новых сообщениях
+window.notifyScreenReader = function(text) {
+    document.getElementById('sr-status').textContent = text;
+};
+}
+
+// Включаем улучшения доступности
+enhanceAccessibility();
+
+// Сохранение диалога
+function addSaveDialogButton() {
+const saveButton = document.createElement('button');
+saveButton.textContent = 'Сохранить диалог';
+saveButton.className = 'admin-button';
+saveButton.style.marginLeft = '10px';
+saveButton.setAttribute('aria-label', 'Сохранить текущий диалог в файл');
+
+saveButton.addEventListener('click', function() {
+    const messages = Array.from(chat.children);
+    let dialogText = '';
+
+    messages.forEach(msg => {
+        const isBot = msg.classList.contains('bot');
+        const text = msg.textContent.trim();
+        dialogText += (isBot ? 'Бот: ' : 'Пользователь: ') + text + '\n\n';
+    });
+
+    const blob = new Blob([dialogText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'диалог-с-ботом-' + new Date().toISOString().slice(0, 10) + '.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+});
+
+// Добавляем рядом с кнопкой очистки истории
+clearHistoryButton.parentNode.insertBefore(saveButton, clearHistoryButton.nextSibling);
+}
     </script>
 </body>
 </html>
