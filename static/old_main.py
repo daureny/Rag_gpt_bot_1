@@ -30,7 +30,6 @@ from langchain.chains import ConversationalRetrievalChain
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-
 load_dotenv()
 
 # Создаем приложение FastAPI с подробными логами
@@ -67,7 +66,7 @@ if not os.path.exists(static_dir):
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 print(f"Статические файлы монтированы из директории: {static_dir}")
 
-INDEX_PATH = "/data/faiss_index" # Mounted disk on Render
+INDEX_PATH = "/data/faiss_index"  # Mounted disk on Render
 LAST_UPDATED_FILE = "last_updated.txt"
 LOG_FILE = "rebuild_log.txt"
 chunk_store = {}
@@ -112,6 +111,7 @@ def download_documents_from_github():
     except Exception as e:
         print(f"Ошибка при клонировании репозитория: {e}")
         return None
+
 
 def extract_title(text: str, filename: str) -> str:
     lines = text.splitlines()[:5]
@@ -309,7 +309,7 @@ def _create_empty_index():
         print(f"Ошибка при создании пустого индекса: {e}")
 
 
-# 2. Добавьте новый эндпоинт для проверки статуса индексации
+# 2. Эндпоинт для проверки статуса индексации
 
 @app.get("/index-status")
 def index_status():
@@ -389,6 +389,7 @@ async def github_webhook(request: Request):
 
         return {"status": "error", "message": error_msg}
 
+
 def load_vectorstore():
     """Загружает векторное хранилище, создавая его при необходимости"""
     print("Попытка загрузки векторного хранилища...")
@@ -433,9 +434,10 @@ def load_vectorstore():
             embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
             empty_texts = [{"page_content": "Индекс пуст или поврежден", "metadata": {"source": "Empty"}}]
             db = FAISS.from_texts([t["page_content"] for t in empty_texts], embeddings,
-                                 metadatas=[t["metadata"] for t in empty_texts])
+                                  metadatas=[t["metadata"] for t in empty_texts])
             db.save_local(INDEX_PATH)
             return db
+
 
 def clean_old_sessions():
     """Очищает старые сессии для экономии памяти"""
@@ -451,6 +453,7 @@ def clean_old_sessions():
             del session_memories[session_id]
         if session_id in session_last_activity:
             del session_last_activity[session_id]
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -468,6 +471,7 @@ async def startup_event():
         print("Создана директория для документов: docs")
 
     print("Приложение запущено и готово к работе!")
+
 
 @app.get("/", response_class=HTMLResponse)
 def chat_ui():
@@ -497,6 +501,7 @@ def chat_ui():
             content=f"<html><body><h1>Ошибка</h1><p>{error_msg}</p></body></html>",
             status_code=500
         )
+
 
 @app.post("/ask")
 async def ask(q: str = Form(...), session_id: str = Cookie(None), response: Response = None):
@@ -689,10 +694,12 @@ async def ask(q: str = Form(...), session_id: str = Cookie(None), response: Resp
             "sources": ""
         }, status_code=500)
 
+
 @app.get("/ping")
 def ping():
     """Простой эндпоинт для проверки, что сервер работает"""
     return {"status": "ok", "message": "Сервер работает"}
+
 
 @app.get("/test-openai")
 async def test_openai():
@@ -716,6 +723,7 @@ async def test_openai():
             "status": "error",
             "message": f"Ошибка при вызове OpenAI API: {str(e)}"
         }
+
 
 @app.post("/test-search")
 async def test_search(q: str = Form(...)):
@@ -744,6 +752,7 @@ async def test_search(q: str = Form(...)):
             "message": f"Ошибка при тестировании поиска: {str(e)}"
         }
 
+
 @app.get("/config")
 def check_config():
     """Проверяет базовую конфигурацию сервера"""
@@ -757,6 +766,7 @@ def check_config():
         "active_sessions": len(session_memories)
     }
     return config
+
 
 @app.post("/rebuild")
 async def rebuild_index(admin_token: str = Header(None)):
@@ -792,6 +802,7 @@ async def rebuild_index(admin_token: str = Header(None)):
             "message": error_msg
         }, status_code=500)
 
+
 @app.post("/clear-session")
 def clear_session(session_id: str = Cookie(None), response: Response = None):
     """Очищает историю сессии"""
@@ -800,6 +811,7 @@ def clear_session(session_id: str = Cookie(None), response: Response = None):
         return {"status": "success", "message": "История диалога очищена"}
     else:
         return {"status": "error", "message": "Сессия не найдена"}
+
 
 @app.get("/debug-pdf-loading")
 def debug_pdf_loading():
@@ -845,6 +857,7 @@ def debug_pdf_loading():
 
     return pdf_diagnostics
 
+
 @app.get("/diagnose-vectorization")
 def diagnose_vectorization():
     """Диагностика процесса векторизации документов"""
@@ -878,6 +891,7 @@ def diagnose_vectorization():
         }
     except Exception as e:
         return {"error": str(e)}
+
 
 # Код для запуска приложения
 if __name__ == "__main__":
