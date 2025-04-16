@@ -66,15 +66,36 @@ if not os.path.exists(static_dir):
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 print(f"Статические файлы монтированы из директории: {static_dir}")
 
-INDEX_PATH = "/data/faiss_index"  # Mounted disk on Render
-LAST_UPDATED_FILE = "last_updated.txt"
-LOG_FILE = "rebuild_log.txt"
+INDEX_PATH = "/data/faiss_index"  # Постоянный диск на Render
+LAST_UPDATED_FILE = "/data/last_updated.txt"
+LOG_FILE = "/data/rebuild_log.txt"
+INDEX_LOCK_FILE = "/data/index_building.lock"
+INDEX_VERSION_FILE = "/data/index_version.txt"
 chunk_store = {}
 
 # Словарь для хранения истории диалогов
 session_memories = {}
 session_last_activity = {}
 SESSION_MAX_AGE = 86400
+
+
+# Обновленная функция для проверки, строится ли индекс в данный момент
+def is_index_building():
+    """Проверяет, идет ли в данный момент процесс построения индекса"""
+    return os.path.exists(INDEX_LOCK_FILE)
+
+
+# Обновленная функция для создания и удаления блокировки индекса
+def create_index_lock():
+    """Создает файл блокировки, указывающий что идет построение индекса"""
+    with open(INDEX_LOCK_FILE, 'w') as f:
+        f.write(f"Index building started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+
+def remove_index_lock():
+    """Удаляет файл блокировки после завершения построения индекса"""
+    if os.path.exists(INDEX_LOCK_FILE):
+        os.remove(INDEX_LOCK_FILE)
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
@@ -139,6 +160,7 @@ def extract_title(text: str, filename: str) -> str:
         return f"Документ: {filename}"
 
 
+# Обновленная функция save_last_updated для сохранения на постоянном диске
 def save_last_updated(message=""):
     """Сохраняет информацию о последнем обновлении в нескольких местах"""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -146,22 +168,13 @@ def save_last_updated(message=""):
     if message:
         update_text += f" ({message})"
 
-    # Сохраняем в корне проекта
+    # Сохраняем в корне постоянного диска
     try:
         with open(LAST_UPDATED_FILE, "w", encoding="utf-8") as f:
             f.write(update_text)
         print(f"Информация о последнем обновлении сохранена в {LAST_UPDATED_FILE}")
     except Exception as e:
         print(f"Ошибка при сохранении информации об обновлении в {LAST_UPDATED_FILE}: {e}")
-
-    # Сохраняем в директории индекса
-    try:
-        index_updated_file = os.path.join(INDEX_PATH, LAST_UPDATED_FILE)
-        with open(index_updated_file, "w", encoding="utf-8") as f:
-            f.write(update_text)
-        print(f"Информация о последнем обновлении сохранена в {index_updated_file}")
-    except Exception as e:
-        print(f"Ошибка при сохранении информации об обновлении в {index_updated_file}: {e}")
 
     # Создаем файл с дополнительной информацией о сборке
     try:
@@ -174,24 +187,44 @@ def save_last_updated(message=""):
     except Exception as e:
         print(f"Ошибка при сохранении информации о сборке: {e}")
 
+    # Обновляем версию индекса для кэширования
+    try:
+        with open(INDEX_VERSION_FILE, "w", encoding="utf-8") as f:
+            f.write(str(int(time.time())))
+        print(f"Версия индекса обновлена в {INDEX_VERSION_FILE}")
+    except Exception as e:
+        print(f"Ошибка при обновлении версии индекса: {e}")
 
-# 1. Разделите процесс индексации на части
 
-# Заменить функцию build_combined_txt на эту версию:
-def build_combined_txt():
+# Модифицированная функция построения индекса
+def build_combined_txt(force=False):
     """Собирает индекс из документов, с асинхронной обработкой и прогрессом"""
+    # Проверяем, не строится ли индекс уже
+    if is_index_building() and not force:
+        print("Построение индекса уже выполняется. Пропускаем запрос.")
+        return {"status": "already_running", "message": "Индексация уже выполняется"}
+
+    # Проверяем существование индекса
+    if os.path.exists(INDEX_PATH) and os.listdir(INDEX_PATH) and not force:
+        # Если индекс существует и не требуется пересоздание, просто возвращаем успех
+        faiss_files = [f for f in os.listdir(INDEX_PATH) if f.endswith('.faiss')]
+        if faiss_files:
+            print("Индекс уже существует и не требует пересоздания")
+            return {"status": "exists", "message": "Индекс уже существует и не требует пересоздания"}
+
     global chunk_store
     chunk_store = {}
-    log_lines = []
-    start_time = time.time()
 
     # Создаем директорию для индекса и временных файлов
     if not os.path.exists(INDEX_PATH):
-        os.makedirs(INDEX_PATH)
+        os.makedirs(INDEX_PATH, exist_ok=True)
 
     temp_index_path = os.path.join(INDEX_PATH, "temp_batches")
     if not os.path.exists(temp_index_path):
-        os.makedirs(temp_index_path)
+        os.makedirs(temp_index_path, exist_ok=True)
+
+    # Создаем блокировку, чтобы показать что индекс строится
+    create_index_lock()
 
     # Запись начального прогресса
     with open(os.path.join(INDEX_PATH, "progress.txt"), "w") as f:
@@ -206,6 +239,28 @@ def build_combined_txt():
     return {"status": "started", "message": "Индексация запущена в фоновом режиме"}
 
 
+# Дополнительная функция для повторных попыток сохранения временного индекса
+def save_temp_index_with_retry(temp_index_path, batch_index, texts, embeddings, max_retries=3):
+    """Сохраняет временный индекс с повторными попытками при ошибках API"""
+    for attempt in range(max_retries):
+        try:
+            batch_db = FAISS.from_documents(texts, embeddings)
+            batch_db.save_local(os.path.join(temp_index_path, f"batch_{batch_index}"))
+            print(f"Временный индекс для батча {batch_index} сохранен")
+            return True
+        except Exception as e:
+            if "rate_limit" in str(e).lower() and attempt < max_retries - 1:
+                wait_time = 30 * (attempt + 1)  # Увеличиваем время ожидания с каждой попыткой
+                print(f"Ограничение API при сохранении batch_{batch_index}, ожидание {wait_time} сек...")
+                time.sleep(wait_time)
+            else:
+                print(f"Ошибка при сохранении временного индекса batch_{batch_index}: {e}")
+                if attempt == max_retries - 1:
+                    raise  # Последняя попытка, выбрасываем ошибку
+    return False
+
+
+# Обновленная функция выполнения индексации
 def _run_indexing_process():
     """Выполняет индексацию в фоновом режиме с улучшенной обработкой ошибок"""
     try:
@@ -228,6 +283,7 @@ def _run_indexing_process():
             else:
                 update_progress(100, "Ошибка: не удалось загрузить документы")
                 _create_empty_index()
+                remove_index_lock()  # Удаляем блокировку при ошибке
                 return
 
         # Определяем путь к документам
@@ -243,6 +299,7 @@ def _run_indexing_process():
         else:
             print(f"Путь НЕ существует: {github_docs_path}")
             update_progress(100, "Ошибка: указанный путь не существует")
+            remove_index_lock()  # Удаляем блокировку при ошибке
             return
 
         repo_docs_path = os.path.join(github_docs_path, "docs")
@@ -271,6 +328,7 @@ def _run_indexing_process():
         if not files_to_process:
             update_progress(100, "Нет файлов для индексации")
             _create_empty_index()
+            remove_index_lock()  # Удаляем блокировку
             return
 
         # Разбиваем файлы на группы для пакетной обработки
@@ -283,25 +341,29 @@ def _run_indexing_process():
         temp_index_path = os.path.join(INDEX_PATH, "temp_batches")
         all_docs = []
 
-        # Обрабатываем батчи файлов
+        # Обрабатываем батчи файлов с защитой от ошибок API и ограничением частоты запросов
         for batch_index, batch in enumerate(file_batches):
             update_progress(
                 20 + (60 * batch_index / len(file_batches)),
                 f"Обработка батча {batch_index + 1} из {len(file_batches)}"
             )
 
+            # Добавляем задержку между батчами, чтобы избежать ограничений API
+            if batch_index > 0:
+                time.sleep(2)  # 2 секунды задержки между батчами
+
             batch_docs = []
             for file in batch:
                 try:
                     print(f"Обработка файла: {file.name}")
                     # Логика загрузки файлов
-                    if file.suffix == ".txt":
+                    if file.suffix.lower() == ".txt":
                         loader = TextLoader(str(file), encoding="utf-8")
-                    elif file.suffix == ".pdf":
+                    elif file.suffix.lower() == ".pdf":
                         loader = PyPDFLoader(str(file))
-                    elif file.suffix == ".docx":
+                    elif file.suffix.lower() == ".docx":
                         loader = Docx2txtLoader(str(file))
-                    elif file.suffix == ".html":
+                    elif file.suffix.lower() == ".html":
                         loader = UnstructuredHTMLLoader(str(file))
                     else:
                         print(f"Пропуск неподдерживаемого формата: {file.suffix}")
@@ -320,7 +382,7 @@ def _run_indexing_process():
                     print(f"Ошибка при обработке {file.name}: {e}")
                     continue
 
-            # Если в батче есть документы, создаем временный индекс
+            # Если в батче есть документы, создаем временный индекс с повторными попытками
             if batch_docs:
                 print(f"Создание временного индекса для батча {batch_index} ({len(batch_docs)} документов)")
                 # Разбиваем на чанки
@@ -333,10 +395,8 @@ def _run_indexing_process():
                 texts = splitter.split_documents(batch_docs)
                 print(f"Разбито на {len(texts)} чанков")
 
-                # Сохраняем во временный индекс
-                batch_db = FAISS.from_documents(texts, embeddings)
-                batch_db.save_local(os.path.join(temp_index_path, f"batch_{batch_index}"))
-                print(f"Временный индекс для батча {batch_index} сохранен")
+                # Сохраняем во временный индекс с повторными попытками
+                save_temp_index_with_retry(temp_index_path, batch_index, texts, embeddings)
 
         # Объединяем все временные индексы
         update_progress(85, "Объединение индексов")
@@ -344,6 +404,7 @@ def _run_indexing_process():
         if not all_docs:
             update_progress(100, "Нет документов для индексации")
             _create_empty_index()
+            remove_index_lock()  # Удаляем блокировку
             return
 
         print(f"Финальная обработка, всего документов: {len(all_docs)}")
@@ -361,9 +422,22 @@ def _run_indexing_process():
             chunk_store[doc.metadata["id"]] = doc.page_content
 
         print("Создание итогового FAISS индекса")
-        db = FAISS.from_documents(texts, embeddings)
-        db.save_local(INDEX_PATH)
-        print(f"Индекс сохранен в {INDEX_PATH}")
+
+        # Создаем индекс с заботой о потенциальных ошибках OpenAI API
+        try:
+            db = FAISS.from_documents(texts, embeddings)
+            db.save_local(INDEX_PATH)
+            print(f"Индекс сохранен в {INDEX_PATH}")
+        except Exception as e:
+            if "rate_limit" in str(e).lower():
+                print(f"Обнаружено ограничение API OpenAI, ждем 60 секунд перед повторной попыткой")
+                time.sleep(60)  # Ждем 1 минуту при превышении лимита
+                # Повторная попытка создания индекса
+                db = FAISS.from_documents(texts, embeddings)
+                db.save_local(INDEX_PATH)
+                print(f"Индекс успешно сохранен в {INDEX_PATH} после повторной попытки")
+            else:
+                raise  # Пробрасываем ошибку, если это не ограничение API
 
         # Очистка временных файлов
         update_progress(95, "Очистка временных файлов")
@@ -387,8 +461,12 @@ def _run_indexing_process():
             pass
         with open(os.path.join(INDEX_PATH, "progress.txt"), "w") as f:
             f.write(f"100,Ошибка: {str(e)}")
+    finally:
+        # Важно: всегда удаляем блокировку, даже при ошибках
+        remove_index_lock()
 
 
+# Обновленная функция для создания пустого индекса
 def _create_empty_index():
     """Создает пустой индекс в случае отсутствия документов"""
     try:
@@ -408,49 +486,144 @@ def _create_empty_index():
         db.save_local(INDEX_PATH)
 
         # Сохраняем информацию о последнем обновлении
-        save_last_updated("пустой индекс")
+        save_last_updated("пустой индекс создан")
 
         print("Создан пустой индекс")
     except Exception as e:
         print(f"Ошибка при создании пустого индекса: {e}")
 
 
-# 2. Добавьте новый эндпоинт для проверки статуса индексации
+# Обновленная функция загрузки векторного хранилища
+def load_vectorstore():
+    """Загружает векторное хранилище с постоянного диска Render"""
+    print("Попытка загрузки векторного хранилища...")
 
-@app.get("/index-status")
-def index_status():
-    """Возвращает текущий статус индексации"""
+    # Проверка API ключа OpenAI
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY не найден в переменных окружения. Проверьте .env файл.")
+
+    # Проверка существования индекса
+    if not os.path.exists(INDEX_PATH):
+        print(f"Директория индекса {INDEX_PATH} не существует. Создаем...")
+        os.makedirs(INDEX_PATH, exist_ok=True)
+
+    # Проверка наличия файлов индекса
+    if not os.path.exists(os.path.join(INDEX_PATH, "index.faiss")):
+        # Если индекс не существует и не строится в данный момент
+        if not is_index_building():
+            print("Индекс не найден и не строится. Начинаем построение...")
+            build_combined_txt()
+
+        # Возвращаем временный индекс для текущего запроса
+        print("Возвращаем временный индекс, пока основной индекс строится...")
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+        temp_doc = {"page_content": "Индекс в процессе построения", "metadata": {"source": "Системное сообщение"}}
+        return FAISS.from_texts([temp_doc["page_content"]], embeddings, metadatas=[temp_doc["metadata"]])
+
     try:
-        progress_path = os.path.join(INDEX_PATH, "progress.txt")
-        if os.path.exists(progress_path):
-            with open(progress_path, "r") as f:
-                progress_data = f.read().strip().split(",", 1)
-                if len(progress_data) == 2:
-                    percent, message = progress_data
-                    return {
-                        "status": "in_progress" if int(percent) < 100 else "completed",
-                        "percent": int(percent),
-                        "message": message
-                    }
+        print("Загрузка векторного хранилища из постоянного диска...")
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
-        # Если файл прогресса не найден, но индекс существует
-        if os.path.exists(INDEX_PATH) and os.listdir(INDEX_PATH):
-            if os.path.exists(LAST_UPDATED_FILE):
-                with open(LAST_UPDATED_FILE, "r") as f:
-                    last_updated = f.read().strip()
-                return {
-                    "status": "completed",
-                    "percent": 100,
-                    "message": f"Индексация завершена. Последнее обновление: {last_updated}"
-                }
-            return {"status": "completed", "percent": 100, "message": "Индексация завершена"}
+        # Пробуем разные варианты загрузки в зависимости от версии библиотеки
+        try:
+            # Сначала пробуем новый метод
+            vectorstore = FAISS.load_local(INDEX_PATH, embeddings, allow_dangerous_deserialization=True)
+        except TypeError:
+            # Если не поддерживается, используем старый метод
+            vectorstore = FAISS.load_local(INDEX_PATH, embeddings)
 
-        return {"status": "unknown", "percent": 0, "message": "Статус индексации неизвестен"}
+        print("Векторное хранилище успешно загружено")
+        return vectorstore
     except Exception as e:
-        return {"status": "error", "percent": 0, "message": f"Ошибка: {str(e)}"}
+        print(f"Ошибка при загрузке индекса: {e}")
+
+        # Если индекс поврежден и еще не строится
+        if not is_index_building():
+            print("Индекс поврежден. Запускаем процесс пересоздания...")
+            build_combined_txt()
+
+        # Создаем минимальный рабочий индекс для текущего запроса
+        print("Возвращаем временный индекс для текущего запроса...")
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+        temp_texts = [{"page_content": "Индекс в процессе обновления", "metadata": {"source": "Системное сообщение"}}]
+        return FAISS.from_texts([t["page_content"] for t in temp_texts], embeddings,
+                                metadatas=[t["metadata"] for t in temp_texts])
 
 
-# Добавление нового эндпоинта для получения даты последнего обновления
+def clean_old_sessions():
+    """Очищает старые сессии для экономии памяти"""
+    current_time = time.time()
+    expired_sessions = []
+
+    for session_id, last_active in session_last_activity.items():
+        if current_time - last_active > SESSION_MAX_AGE:
+            expired_sessions.append(session_id)
+
+    for session_id in expired_sessions:
+        if session_id in session_memories:
+            del session_memories[session_id]
+        if session_id in session_last_activity:
+            del session_last_activity[session_id]
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Инициализирует необходимые директории и проверяет индекс при запуске"""
+    print("Запуск приложения...")
+
+    # Создаем все необходимые директории
+    if not os.path.exists(INDEX_PATH):
+        os.makedirs(INDEX_PATH, exist_ok=True)
+        print(f"Создана директория для индекса: {INDEX_PATH}")
+
+    # Проверка и очистка устаревших блокировок
+    if is_index_building():
+        # Если найдена блокировка, проверяем её возраст
+        try:
+            # Получаем время создания файла блокировки
+            lock_time = os.path.getmtime(INDEX_LOCK_FILE)
+            current_time = time.time()
+
+            # Если блокировка старше 2 часов, считаем её зависшей и удаляем
+            if current_time - lock_time > 7200:  # 2 часа в секундах
+                print("Обнаружена устаревшая блокировка индекса. Удаляем...")
+                remove_index_lock()
+
+                # Проверяем статус индекса
+                if not os.path.exists(os.path.join(INDEX_PATH, "index.faiss")):
+                    print("Индекс не найден после удаления зависшей блокировки. Запускаем построение...")
+                    build_combined_txt()
+                else:
+                    print("Индекс существует, но была обнаружена зависшая блокировка. Индекс готов к использованию.")
+            else:
+                print("Обнаружена активная блокировка индекса. Индекс в процессе построения.")
+        except Exception as e:
+            print(f"Ошибка при проверке блокировки индекса: {e}")
+            remove_index_lock()  # На всякий случай удаляем блокировку
+
+    # Проверка индекса
+    if not os.path.exists(os.path.join(INDEX_PATH, "index.faiss")):
+        print("Индекс не найден. Проверяем, строится ли он сейчас...")
+        if not is_index_building():
+            print("Индекс не строится. Запускаем построение...")
+            build_combined_txt()
+        else:
+            print("Индекс в процессе построения.")
+    else:
+        print("Индекс найден и готов к использованию.")
+
+    # Записываем информацию о запуске сервиса
+    try:
+        startup_log = os.path.join(INDEX_PATH, "service_startups.log")
+        with open(startup_log, "a", encoding="utf-8") as f:
+            f.write(f"Сервис запущен: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    except Exception as e:
+        print(f"Не удалось записать лог запуска: {e}")
+
+    print("Приложение запущено и готово к работе!")
+
+
 @app.post("/get-last-updated")
 def get_last_updated():
     """Возвращает информацию о последнем обновлении базы знаний"""
@@ -458,8 +631,7 @@ def get_last_updated():
         # Проверяем несколько возможных путей к файлу
         locations = [
             LAST_UPDATED_FILE,
-            os.path.join(INDEX_PATH, LAST_UPDATED_FILE),
-            "last_updated.txt",
+            os.path.join(INDEX_PATH, "last_updated.txt"),
             "/data/last_updated.txt"
         ]
 
@@ -472,6 +644,29 @@ def get_last_updated():
                         "last_updated": last_updated,
                         "source": location
                     }
+
+        # Проверяем статус индексации
+        if is_index_building():
+            try:
+                progress_path = os.path.join(INDEX_PATH, "progress.txt")
+                if os.path.exists(progress_path):
+                    with open(progress_path, "r") as f:
+                        progress_data = f.read().strip().split(",", 1)
+                        if len(progress_data) == 2:
+                            percent, message = progress_data
+                            return {
+                                "status": "indexing",
+                                "last_updated": f"Выполняется индексация ({percent}%): {message}",
+                                "source": "progress"
+                            }
+            except:
+                pass
+
+            return {
+                "status": "indexing",
+                "last_updated": "Индексация в процессе",
+                "source": "lock_file"
+            }
 
         # Если нигде не нашли, создаем новый файл
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -509,16 +704,15 @@ async def github_webhook(request: Request):
         if "rag-chatbot-documents" not in repository.lower():
             return {"status": "skipped", "message": "Вебхук не относится к репозиторию с документами"}
 
+        # Проверяем, не строится ли индекс уже
+        if is_index_building():
+            return {"status": "info", "message": "Индексация уже выполняется"}
+
         # Запускаем обновление индекса в фоновом режиме без ожидания завершения
         import threading
         thread = threading.Thread(target=build_combined_txt)
         thread.daemon = True  # Важно! Позволяет завершить поток при выходе из приложения
         thread.start()
-
-        # Записываем в прогресс-файл начало процесса
-        progress_path = os.path.join(INDEX_PATH, "progress.txt")
-        with open(progress_path, "w") as f:
-            f.write("1,Начало фоновой индексации")
 
         # Записываем в лог информацию о вебхуке
         with open(LOG_FILE, "a", encoding="utf-8") as log:
@@ -541,338 +735,146 @@ async def github_webhook(request: Request):
         return {"status": "error", "message": error_msg}
 
 
-def load_vectorstore():
-    """Загружает векторное хранилище, создавая его при необходимости"""
-    print("Попытка загрузки векторного хранилища...")
+@app.post("/rebuild")
+async def rebuild_index(admin_token: str = Header(None)):
+    """Пересоздает индекс документов с проверкой пароля администратора"""
+    # Получаем пароль из переменных окружения
+    admin_password = os.getenv("ADMIN_PASSWORD")
 
-    # Проверка API ключа OpenAI
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY не найден в переменных окружения. Проверьте .env файл.")
-
-    # Проверка существования индекса
-    if not os.path.exists(INDEX_PATH):
-        print(f"Директория индекса {INDEX_PATH} не существует. Создаем...")
-        os.makedirs(INDEX_PATH, exist_ok=True)
-
-    if not os.listdir(INDEX_PATH):
-        print("Индекс пуст. Создаем новый индекс...")
-        build_combined_txt()
-
-    try:
-        print("Загрузка векторного хранилища...")
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-        vectorstore = FAISS.load_local(INDEX_PATH, embeddings, allow_dangerous_deserialization=True)
-        print("Векторное хранилище успешно загружено")
-        return vectorstore
-    except Exception as e:
-        print(f"Ошибка при загрузке индекса: {e}")
-        print("Пересоздаем индекс...")
-        try:
-            # Пересоздаем индекс при ошибке
-            build_combined_txt()
-            # Повторная попытка загрузки
-            print("Повторная попытка загрузки индекса...")
-            embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-            vectorstore = FAISS.load_local(INDEX_PATH, embeddings, allow_dangerous_deserialization=True)
-            print("Векторное хранилище успешно загружено после пересоздания")
-            return vectorstore
-        except Exception as e2:
-            # Если повторная попытка не удалась, создаем пустой индекс
-            print(f"Вторая ошибка при работе с индексом: {e2}")
-            print("Создаем минимальный рабочий индекс...")
-            # Создаем минимальный индекс с одним документом
-            embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-            empty_texts = [{"page_content": "Индекс пуст или поврежден", "metadata": {"source": "Системное сообщение"}}]
-            db = FAISS.from_texts([t["page_content"] for t in empty_texts], embeddings,
-                                  metadatas=[t["metadata"] for t in empty_texts])
-            db.save_local(INDEX_PATH)
-            return db
-
-
-def clean_old_sessions():
-    """Очищает старые сессии для экономии памяти"""
-    current_time = time.time()
-    expired_sessions = []
-
-    for session_id, last_active in session_last_activity.items():
-        if current_time - last_active > SESSION_MAX_AGE:
-            expired_sessions.append(session_id)
-
-    for session_id in expired_sessions:
-        if session_id in session_memories:
-            del session_memories[session_id]
-        if session_id in session_last_activity:
-            del session_last_activity[session_id]
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Инициализирует индекс при запуске, если его нет"""
-    print("Запуск приложения...")
-    # Не делаем тяжелую инициализацию при запуске, чтобы приложение стартовало быстро
-    # Проверяем только наличие необходимых директорий
-    if not os.path.exists(INDEX_PATH):
-        os.makedirs(INDEX_PATH, exist_ok=True)
-        print(f"Создана директория для индекса: {INDEX_PATH}")
-
-    docs_path = Path("docs")
-    if not docs_path.exists():
-        docs_path.mkdir(exist_ok=True)
-        print("Создана директория для документов: docs")
-
-    print("Приложение запущено и готово к работе!")
-
-
-@app.get("/", response_class=HTMLResponse)
-def chat_ui():
-    try:
-        print("Запрос к главной странице...")
-
-        # Улучшенная обработка даты последнего обновления
-        last_updated = "Неизвестно"
-        try:
-            # Проверяем несколько возможных путей к файлу
-            locations = [
-                LAST_UPDATED_FILE,
-                os.path.join(INDEX_PATH, LAST_UPDATED_FILE),
-                "last_updated.txt",
-                "/data/last_updated.txt"
-            ]
-
-            for location in locations:
-                if os.path.exists(location):
-                    with open(location, "r", encoding="utf-8") as f:
-                        last_updated = f.read().strip()
-                        print(f"Найден файл с датой обновления: {location} -> {last_updated}")
-                        break
-
-            if last_updated == "Неизвестно":
-                print("Файл с датой обновления не найден")
-                # Создаем с текущей датой
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                save_last_updated("файл создан автоматически")
-                last_updated = timestamp + " (создан автоматически)"
-        except Exception as e:
-            print(f"Ошибка при чтении даты обновления: {e}")
-
-        # Проверка наличия HTML шаблона
-        html_path = "static/index_chat.html"
-        if not os.path.exists(html_path):
-            return HTMLResponse(
-                content="<html><body><h1>Ошибка: файл index_chat.html не найден</h1><p>Убедитесь, что файл существует в директории static.</p></body></html>"
-            )
-
-        with open(html_path, "r", encoding="utf-8") as f:
-            html_template = f.read()
-
-        print(f"Главная страница успешно загружена. Дата обновления: {last_updated}")
-        return HTMLResponse(content=html_template.replace("{{last_updated}}", last_updated))
-    except Exception as e:
-        error_msg = f"Ошибка при загрузке главной страницы: {str(e)}"
-        print(error_msg)
-        return HTMLResponse(
-            content=f"<html><body><h1>Ошибка</h1><p>{error_msg}</p></body></html>",
-            status_code=500
-        )
-
-
-@app.post("/ask")
-async def ask(q: str = Form(...), session_id: str = Cookie(None), response: Response = None):
-    print(f"Получен запрос: {q[:50]}...")
-
-    # Проверяем, есть ли текст в запросе
-    if not q or len(q.strip()) == 0:
+    if not admin_password:
         return JSONResponse({
-            "answer": "Пожалуйста, введите ваш вопрос.",
-            "sources": ""
-        })
-
-    try:
-        # Очищаем старые сессии периодически
-        clean_old_sessions()
-
-        # Создаем новый ID сессии, если его нет или устанавливаем существующий
-        if not session_id:
-            session_id = str(uuid.uuid4())
-            if response:
-                response.set_cookie(key="session_id", value=session_id, max_age=SESSION_MAX_AGE)
-            print(f"Создана новая сессия: {session_id}")
-        else:
-            print(f"Использована существующая сессия: {session_id}")
-            # Обновляем cookie, чтобы продлить срок жизни
-            if response:
-                response.set_cookie(key="session_id", value=session_id, max_age=SESSION_MAX_AGE)
-
-        # Получаем или создаем историю чата для текущей сессии
-        if session_id not in session_memories:
-            session_memories[session_id] = []
-            print(f"Создана новая история для сессии: {session_id}")
-
-        # Обновляем время последней активности
-        session_last_activity[session_id] = time.time()
-
-        chat_history = session_memories[session_id]
-
-        # Логируем текущую историю чата
-        print(f"История диалога для сессии {session_id} (всего {len(chat_history)} обменов):")
-        for i, (question, answer) in enumerate(chat_history):
-            print(f"  {i + 1}. Вопрос: {question[:50]}...")
-            print(f"     Ответ: {answer[:50]}...")
-
-        print("Загружаем векторное хранилище...")
-        vectorstore = load_vectorstore()
-
-        print("Инициализируем модель LLM...")
-        if not os.getenv("OPENAI_API_KEY"):
-            return JSONResponse({
-                "answer": "Ошибка: Не найден ключ API OpenAI. Пожалуйста, проверьте настройки .env файла.",
-                "sources": ""
-            }, status_code=500)
-
-        # Создаем улучшенный системный промпт с инструкциями по контексту и форматированию
-        system_prompt = """
-                Ты ассистент с доступом к базе знаний. Используй информацию из базы знаний для ответа на вопросы.
-
-                ОЧЕНЬ ВАЖНО: При ответе обязательно учитывай историю диалога и предыдущие вопросы пользователя!
-                Если пользователь задает вопрос, который связан с предыдущим (например "Как его рассчитать?"), 
-                то обязательно восстанови контекст из предыдущих сообщений.
-
-                Если в базе знаний нет достаточной информации для полного ответа, честно признайся, что не знаешь.
-
-                ВАЖНОЕ ТРЕБОВАНИЕ К ФОРМАТИРОВАНИЮ:
-                1. Структурируй ответ с использованием АБЗАЦЕВ - каждый новый абзац должен начинаться с новой строки и отделяться ПУСТОЙ строкой.
-                2. Для создания абзаца используй ДВОЙНОЙ перенос строки (два символа новой строки).
-                3. Избегай длинных параграфов без разбивки - максимум 5-7 строк в одном абзаце.
-                4. Для списков используй следующие форматы:
-                   - Маркированный список: каждый пункт с новой строки, начиная с символа "•" или "-"
-                   - Нумерованный список: с новой строки, начиная с "1.", "2." и т.д.
-                5. НИКОГДА не используй HTML-теги (например <br>, <p>, <div> и т.д.)
-                6. Выделяй важные концепции с помощью символов * (для выделения) или ** (для сильного выделения)
-
-                ПРИМЕР ПРАВИЛЬНОГО ФОРМАТИРОВАНИЯ:
-
-                Первый абзац с объяснением. Здесь я описываю основную концепцию и даю ключевую информацию.
-
-                Второй абзац с дополнительными деталями. Обрати внимание на пустую строку между абзацами.
-
-                Вот список важных моментов:
-                • Первый пункт списка
-                • Второй пункт списка
-                • Третий пункт списка
-
-                Заключительный абзац с выводами.
-
-                КОНЕЦ ПРИМЕРА
-
-                Твоя задача — отвечать максимально информативно и точно по контексту, сохраняя преемственность диалога и правильное форматирование.
-
-                Если в вопросе есть местоимения ("он", "это", "такой"), используй историю диалога, чтобы понять, о чём речь.
-
-                Если пользователь спрашивает "как рассчитывается" или "как определяется" некий термин, 
-                и в базе знаний отсутствует точная формула или численный метод, 
-                ты должен:
-                - интерпретировать вопрос шире — как просьбу объяснить **как определяется, из чего состоит, какие компоненты, лимиты или методология используются**
-                - описать **подходы, параметры и логику**, стоящие за определением или управлением этим понятием
-                - НЕ путать такие вопросы с расчётом нормативов капитала или других несвязанных показателей
-
-                Твоя цель — дать экспертный, логичный и понятный ответ, даже если прямых данных нет, используя всё, что тебе доступно.
-                """
-
-        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.2)
-
-        print("Создаем расширенный запрос с учетом контекста...")
-
-        # Подготовка истории диалога для включения в запрос - берем ВСЮ историю для лучшего контекста
-        dialog_context = ""
-        if chat_history:
-            dialog_context = "История диалога:\n"
-            for i, (prev_q, prev_a) in enumerate(chat_history):
-                dialog_context += f"Вопрос пользователя: {prev_q}\nТвой ответ: {prev_a}\n\n"
-
-        # Создаем обогащенный запрос, включающий историю диалога
-        # Собираем последние 3 пары вопрос-ответ, чтобы добавить больше контекста
-        recent_dialogue = " ".join([qa[0] + " " + qa[1] for qa in chat_history[-3:]]) if chat_history else ""
-        enhanced_query = f"{recent_dialogue} {q}"
-
-        print(f"Поисковый запрос: {enhanced_query[:200]}...")
-
-        # Получаем релевантные документы - увеличиваем до 6 для большего охвата
-        retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 6})
-        relevant_docs = retriever.get_relevant_documents(enhanced_query)
-
-        if len(relevant_docs) == 0:
-            context = "Документов не найдено. Постарайся ответить, используя только историю диалога, если это возможно."
-        else:
-            # Создаем контекст из релевантных документов
-            context = ""
-            for i, doc in enumerate(relevant_docs):
-                context += f"Документ {i + 1}: {doc.page_content}\n\n"
-
-        print(f"Найдено {len(relevant_docs)} релевантных документов")
-
-        # Создаем полный промпт для LLM
-        full_prompt = f"""
-                {system_prompt}
-
-                {dialog_context}
-
-                Контекст из базы знаний:
-                {context}
-
-                Текущий вопрос пользователя: {q}
-
-                Дай подробный, содержательный ответ на основе предоставленной информации и с учётом предыдущего диалога.
-                Если вопрос связан с предыдущими вопросами, обязательно учти это в ответе.
-                Не используй HTML-теги в ответе.
-                """
-
-        print("Отправляем запрос в LLM...")
-        result = llm.invoke(full_prompt)
-        answer = result.content
-        print(f"Получен ответ от LLM: {answer[:100]}...")
-
-        # Сохраняем пару вопрос-ответ в историю сессии
-        session_memories[session_id].append((q, answer))
-
-        # Ограничиваем длину истории, чтобы избежать переполнения
-        if len(session_memories[session_id]) > 15:  # Увеличили до 15 для лучшего контекста
-            session_memories[session_id] = session_memories[session_id][-15:]
-
-        # Формируем источники для отображения
-        source_links = ""
-        used_titles = set()
-        for doc in relevant_docs:
-            title = doc.metadata.get("source", "Источник неизвестен")
-            if title not in used_titles:
-                content = html.escape(doc.page_content[:3000])
-                source_links += f"<details><summary>📄 {title}</summary><pre style='white-space:pre-wrap;text-align:left'>{content}</pre></details>"
-                used_titles.add(title)
-
-        print("Возвращаем ответ клиенту")
-        # Заменяем любые случайно оставшиеся HTML-теги
-        clean_answer = answer.replace("<br>", "\n").replace("<p>", "").replace("</p>", "\n")
-
-        return JSONResponse({"answer": clean_answer, "sources": source_links})
-
-    except Exception as e:
-        error_message = f"Ошибка при обработке запроса: {str(e)}"
-        print(error_message)
-        with open(LOG_FILE, "a", encoding="utf-8") as log:
-            log.write(f"=== Ошибка запроса от {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n")
-            log.write(f"Вопрос: {q}\n")
-            log.write(f"Ошибка: {error_message}\n\n")
-
-        return JSONResponse({
-            "answer": f"Извините, произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте позже или обратитесь к администратору.",
-            "sources": ""
+            "status": "error",
+            "message": "Пароль администратора не задан в конфигурации сервера"
         }, status_code=500)
+
+    # Проверяем переданный токен с ожидаемым значением
+    expected_token = hashlib.sha256(admin_password.encode()).hexdigest()
+
+    if not admin_token or admin_token != expected_token:
+        return JSONResponse({
+            "status": "error",
+            "message": "Доступ запрещен: неверный пароль администратора"
+        }, status_code=403)
+
+    # Проверяем, не строится ли индекс уже
+    if is_index_building():
+        # Проверяем возраст блокировки
+        try:
+            lock_time = os.path.getmtime(INDEX_LOCK_FILE)
+            current_time = time.time()
+
+            # Если блокировка старше 3 часов, считаем ее зависшей и удаляем
+            if current_time - lock_time > 10800:  # 3 часа в секундах
+                print("Обнаружена устаревшая блокировка индекса. Удаляем...")
+                remove_index_lock()
+            else:
+                return JSONResponse({
+                    "status": "info",
+                    "message": "Индексация уже выполняется. Пожалуйста, подождите завершения текущего процесса."
+                })
+        except:
+            # При ошибке на всякий случай удаляем блокировку
+            remove_index_lock()
+
+    try:
+        print("Запрос на пересоздание индекса от администратора...")
+        # Принудительное пересоздание индекса
+        result = build_combined_txt(force=True)
+        print("Запущен процесс пересоздания индекса")
+        return JSONResponse({
+            "status": "success",
+            "message": "Запущен процесс обновления базы знаний. Это может занять некоторое время."
+        })
+    except Exception as e:
+        error_msg = f"Ошибка при запуске пересоздания индекса: {str(e)}"
+        print(error_msg)
+        return JSONResponse({
+            "status": "error",
+            "message": error_msg
+        }, status_code=500)
+
+
+@app.post("/clear-session")
+def clear_session(session_id: str = Cookie(None), response: Response = None):
+    """Очищает историю сессии"""
+    if session_id and session_id in session_memories:
+        session_memories[session_id] = []
+        return {"status": "success", "message": "История диалога очищена"}
+    else:
+        return {"status": "error", "message": "Сессия не найдена"}
 
 
 @app.get("/ping")
 def ping():
     """Простой эндпоинт для проверки, что сервер работает"""
     return {"status": "ok", "message": "Сервер работает"}
+
+
+@app.get("/indexing-status")
+def indexing_status():
+    """Возвращает текущий статус индексации"""
+    try:
+        # Проверяем, строится ли индекс
+        if is_index_building():
+            try:
+                # Ищем файл с прогрессом
+                progress_path = os.path.join(INDEX_PATH, "progress.txt")
+                if os.path.exists(progress_path):
+                    with open(progress_path, "r") as f:
+                        progress_data = f.read().strip().split(",", 1)
+                        if len(progress_data) == 2:
+                            percent, message = progress_data
+                            return {
+                                "status": "in_progress",
+                                "percent": int(percent),
+                                "message": message
+                            }
+
+                # Если нет файла прогресса, но есть блокировка
+                return {
+                    "status": "in_progress",
+                    "percent": 0,
+                    "message": "Индексация начата"
+                }
+            except Exception as e:
+                return {
+                    "status": "in_progress",
+                    "percent": 0,
+                    "message": f"Индексация выполняется, но не удалось получить детали: {str(e)}"
+                }
+
+        # Если индекс не строится, проверяем его наличие
+        if os.path.exists(os.path.join(INDEX_PATH, "index.faiss")):
+            # Проверяем информацию о последнем обновлении
+            if os.path.exists(LAST_UPDATED_FILE):
+                with open(LAST_UPDATED_FILE, "r", encoding="utf-8") as f:
+                    last_updated = f.read().strip()
+                return {
+                    "status": "completed",
+                    "percent": 100,
+                    "message": f"Индексация завершена. Последнее обновление: {last_updated}"
+                }
+
+            return {
+                "status": "completed",
+                "percent": 100,
+                "message": "Индексация завершена"
+            }
+
+        # Если индекс не найден и не строится
+        return {
+            "status": "not_started",
+            "percent": 0,
+            "message": "Индекс не найден и не строится"
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "percent": 0,
+            "message": f"Ошибка при получении статуса индексации: {str(e)}"
+        }
+
 
 
 @app.get("/test-openai")
@@ -934,57 +936,29 @@ def check_config():
         "app_running": True,
         "static_files": os.path.exists(static_dir),
         "openai_api_key": bool(os.getenv("OPENAI_API_KEY")),
-        "index_exists": os.path.exists(INDEX_PATH) and os.listdir(INDEX_PATH),
+        "data_dir_exists": os.path.exists("/data"),
+        "index_dir_exists": os.path.exists(INDEX_PATH),
+        "index_exists": os.path.exists(os.path.join(INDEX_PATH, "index.faiss")),
+        "is_indexing": is_index_building(),
+        "last_updated_file_exists": os.path.exists(LAST_UPDATED_FILE),
         "documents_dir_exists": os.path.exists("docs"),
         "documents_count": len(list(Path("docs").glob("*"))) if os.path.exists("docs") else 0,
         "active_sessions": len(session_memories)
     }
+
+    # Добавляем содержимое директории индекса, если она существует
+    if os.path.exists(INDEX_PATH):
+        config["index_dir_contents"] = os.listdir(INDEX_PATH)
+
+    # Добавляем информацию о последнем обновлении, если файл существует
+    if os.path.exists(LAST_UPDATED_FILE):
+        try:
+            with open(LAST_UPDATED_FILE, "r", encoding="utf-8") as f:
+                config["last_updated"] = f.read().strip()
+        except:
+            config["last_updated"] = "Невозможно прочитать файл"
+
     return config
-
-
-@app.post("/rebuild")
-async def rebuild_index(admin_token: str = Header(None)):
-    """Пересоздает индекс документов с проверкой пароля администратора"""
-    # Получаем пароль из переменных окружения
-    admin_password = os.getenv("ADMIN_PASSWORD")
-
-    if not admin_password:
-        return JSONResponse({
-            "status": "error",
-            "message": "Пароль администратора не задан в конфигурации сервера"
-        }, status_code=500)
-
-    # Проверяем переданный токен с ожидаемым значением
-    expected_token = hashlib.sha256(admin_password.encode()).hexdigest()
-
-    if not admin_token or admin_token != expected_token:
-        return JSONResponse({
-            "status": "error",
-            "message": "Доступ запрещен: неверный пароль администратора"
-        }, status_code=403)
-
-    try:
-        print("Запрос на пересоздание индекса...")
-        build_combined_txt()
-        print("Индекс успешно пересоздан")
-        return JSONResponse({"status": "success", "message": "Индекс успешно пересоздан"})
-    except Exception as e:
-        error_msg = f"Ошибка при пересоздании индекса: {str(e)}"
-        print(error_msg)
-        return JSONResponse({
-            "status": "error",
-            "message": error_msg
-        }, status_code=500)
-
-
-@app.post("/clear-session")
-def clear_session(session_id: str = Cookie(None), response: Response = None):
-    """Очищает историю сессии"""
-    if session_id and session_id in session_memories:
-        session_memories[session_id] = []
-        return {"status": "success", "message": "История диалога очищена"}
-    else:
-        return {"status": "error", "message": "Сессия не найдена"}
 
 
 @app.get("/debug-pdf-loading")
@@ -994,7 +968,7 @@ def debug_pdf_loading():
     pdf_diagnostics = []
 
     for file in docs_path.iterdir():
-        if file.suffix == ".pdf":
+        if file.suffix.lower() == ".pdf":
             try:
                 # Проверка с новым PdfReader
                 with open(str(file), 'rb') as f:
@@ -1060,11 +1034,79 @@ def diagnose_vectorization():
                 results[query] = {"error": str(e)}
 
         return {
-            "total_indexed_documents": len(vectorstore.index_to_docstore_id),
+            "total_indexed_documents": len(vectorstore.index_to_docstore_id) if hasattr(vectorstore,
+                                                                                        'index_to_docstore_id') else "неизвестно",
             "retrieval_test_results": results
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+@app.get("/data-directory")
+def list_data_directory():
+    """Показывает содержимое директории данных (только для отладки)"""
+    try:
+        data_dir = "/data"
+        if not os.path.exists(data_dir):
+            return {"status": "error", "message": "Директория /data не существует"}
+
+        directories = []
+        files = []
+
+        for item in os.listdir(data_dir):
+            item_path = os.path.join(data_dir, item)
+            if os.path.isdir(item_path):
+                try:
+                    dir_content = os.listdir(item_path)
+                    directories.append({
+                        "name": item,
+                        "path": item_path,
+                        "items_count": len(dir_content),
+                        "items": dir_content[:20] if len(dir_content) <= 20 else dir_content[:20] + [
+                            "...и еще " + str(len(dir_content) - 20) + " элементов"]
+                    })
+                except Exception as e:
+                    directories.append({
+                        "name": item,
+                        "path": item_path,
+                        "error": str(e)
+                    })
+            else:
+                try:
+                    size = os.path.getsize(item_path)
+                    mtime = datetime.fromtimestamp(os.path.getmtime(item_path)).strftime('%Y-%m-%d %H:%M:%S')
+
+                    # Для текстовых файлов пытаемся получить первые строки
+                    content_preview = None
+                    if item.endswith(('.txt', '.log')) and size < 10000:
+                        try:
+                            with open(item_path, 'r', encoding='utf-8') as f:
+                                content_preview = f.read(1000)
+                        except:
+                            content_preview = "Невозможно прочитать содержимое"
+
+                    files.append({
+                        "name": item,
+                        "path": item_path,
+                        "size": size,
+                        "modified": mtime,
+                        "preview": content_preview
+                    })
+                except Exception as e:
+                    files.append({
+                        "name": item,
+                        "path": item_path,
+                        "error": str(e)
+                    })
+
+        return {
+            "status": "success",
+            "data_dir": data_dir,
+            "directories": directories,
+            "files": files
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
 # Код для запуска приложения
