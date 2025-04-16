@@ -17,6 +17,7 @@ import shutil
 
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+import traceback
 
 load_dotenv()
 
@@ -122,39 +123,27 @@ def download_index_from_github(force=False):
 
 # Загружаем векторное хранилище
 def load_vectorstore():
-    """Загружает векторное хранилище"""
-    # Проверяем наличие индекса
-    if not os.path.exists(os.path.join(INDEX_PATH, "index.faiss")):
-        print("Индекс не найден. Загружаем из GitHub...")
-        download_index_from_github()
+    print("Загрузка векторного хранилища...")
+    index_file = os.path.join(INDEX_PATH, "index.faiss")
+
+    if not os.path.exists(index_file):
+        print("Индекс не найден. Попытка загрузки из GitHub...")
+        try:
+            download_index_from_github()
+        except Exception as e:
+            print("Ошибка при загрузке индекса из GitHub:", e)
+            traceback.print_exc()
+            raise RuntimeError("Индекс не загружен. Причина: ошибка при загрузке с GitHub.")
 
     try:
-        # Проверяем API ключ
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY не найден в переменных окружения")
-
-        print("Загрузка векторного хранилища...")
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-
-        try:
-            # Новый метод
-            vectorstore = FAISS.load_local(INDEX_PATH, embeddings, allow_dangerous_deserialization=True)
-        except TypeError:
-            # Старый метод
-            vectorstore = FAISS.load_local(INDEX_PATH, embeddings)
-
+        print("Попытка загрузки индекса из:", INDEX_PATH)
+        vectorstore = FAISS.load_local(INDEX_PATH, OpenAIEmbeddings(), allow_dangerous_deserialization=True)
         print("Векторное хранилище успешно загружено")
         return vectorstore
     except Exception as e:
-        print(f"Ошибка при загрузке индекса: {e}")
-
-        # Создаем минимальный рабочий индекс для текущего запроса
-        print("Возвращаем временный индекс для текущего запроса...")
-        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-        temp_texts = [{"page_content": "Индекс в процессе обновления", "metadata": {"source": "Системное сообщение"}}]
-        return FAISS.from_texts([t["page_content"] for t in temp_texts], embeddings,
-                                metadatas=[t["metadata"] for t in temp_texts])
+        print("Ошибка при загрузке индекса:", e)
+        traceback.print_exc()
+        raise RuntimeError("Индекс найден, но не удалось загрузить. Подробности выше.")
 
 # Очистка старых сессий
 def clean_old_sessions():
