@@ -263,12 +263,21 @@ def save_temp_index_with_retry(temp_index_path, batch_index, texts, embeddings, 
 # Обновленная функция выполнения индексации
 def _run_indexing_process():
     """Выполняет индексацию в фоновом режиме с улучшенной обработкой ошибок"""
+    import threading
+
+    def heartbeat():
+        while True:
+            print(f"[Хартбит] Индексация жива: {datetime.now().isoformat()}", flush=True)
+            time.sleep(60)
+
+    threading.Thread(target=heartbeat, daemon=True).start()
+
     try:
         # Обновляем прогресс
         def update_progress(percent, message):
             with open(os.path.join(INDEX_PATH, "progress.txt"), "w") as f:
                 f.write(f"{percent},{message}")
-            print(f"Прогресс индексации: {percent}% - {message}")
+            print(f"Прогресс индексации: {percent}% - {message}", flush=True)
 
         update_progress(5, "Загрузка документов из GitHub")
 
@@ -322,7 +331,7 @@ def _run_indexing_process():
 
         supported_extensions = [".pdf", ".docx", ".txt", ".html"]
         files_to_process = [f for f in all_files if f.suffix.lower() in supported_extensions]
-        print(f"Файлы для обработки: {[f.name for f in files_to_process]}")
+        print(f"Файлы для обработки: {[f.name for f in files_to_process]}", flush=True)
 
         # Если нет файлов, создаем пустой индекс
         if not files_to_process:
