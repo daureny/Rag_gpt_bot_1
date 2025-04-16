@@ -156,7 +156,6 @@ def load_vectorstore():
         return FAISS.from_texts([t["page_content"] for t in temp_texts], embeddings,
                                 metadatas=[t["metadata"] for t in temp_texts])
 
-
 # Очистка старых сессий
 def clean_old_sessions():
     """Очищает старые сессии для экономии памяти"""
