@@ -51,7 +51,7 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Константы
 INDEX_PATH = "/data/faiss_index"  # Постоянный диск на Render
-GITHUB_INDEX_REPO = "https://github.com/daureny/rag-chatbot-index.git"
+LOCAL_INDEX_PATH = "./index"  # Локальный путь к индексу в проекте
 
 # Хранение сессий
 session_memories = {}
@@ -59,66 +59,45 @@ session_last_activity = {}
 SESSION_MAX_AGE = 86400  # 24 часа
 
 
-# Загрузка индекса из GitHub
-def download_index_from_github(force=False):
-    """Загружает готовый индекс из репозитория GitHub"""
-    # Проверяем наличие индекса, если не требуется принудительное обновление
-    if not force and os.path.exists(os.path.join(INDEX_PATH, "index.faiss")):
-        print("Индекс уже существует и не требует загрузки")
-        return True
+# Копирование индекса из локальной директории проекта на Render
+def copy_index_to_render_storage():
+    """Копирует индекс из локального проекта в persistent storage на Render"""
+    print(f"Копирование индекса из {LOCAL_INDEX_PATH} в {INDEX_PATH}...")
 
-    # Создаем директорию для индекса, если её нет
-    os.makedirs(INDEX_PATH, exist_ok=True)
-
-    temp_dir = tempfile.mkdtemp()
+    # Проверяем существует ли локальный индекс
+    if not os.path.exists(os.path.join(LOCAL_INDEX_PATH, "index.faiss")):
+        print("Ошибка: Локальный индекс не найден")
+        return False
 
     try:
-        print(f"Клонирование репозитория с индексом в {temp_dir}...")
+        # Создаем директорию на Render, если её нет
+        os.makedirs(INDEX_PATH, exist_ok=True)
 
-        # Добавляем токен для приватного репозитория, если есть
-        github_token = os.environ.get("GITHUB_TOKEN")
-        repo_url = GITHUB_INDEX_REPO
-        if github_token:
-            repo_parts = GITHUB_INDEX_REPO.split("//")
-            repo_url = f"{repo_parts[0]}//{github_token}@{repo_parts[1]}"
+        # Копируем все файлы из локального индекса в Render storage
+        for item in os.listdir(LOCAL_INDEX_PATH):
+            source = os.path.join(LOCAL_INDEX_PATH, item)
+            destination = os.path.join(INDEX_PATH, item)
 
-        # Клонируем репозиторий
-        subprocess.run(
-            ["git", "clone", "--depth", "1", repo_url, temp_dir],
-            check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120
-        )
+            if os.path.isfile(source):
+                shutil.copy2(source, destination)
+                print(f"Скопирован файл: {item}")
+            elif os.path.isdir(source):
+                if os.path.exists(destination):
+                    shutil.rmtree(destination)
+                shutil.copytree(source, destination)
+                print(f"Скопирована директория: {item}")
 
-        print("Репозиторий с индексом успешно клонирован")
+        # Обновляем информацию о времени копирования
+        with open(os.path.join(INDEX_PATH, "copied_at.txt"), "w", encoding="utf-8") as f:
+            f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-        # Проверяем наличие файлов индекса
-        if os.path.exists(os.path.join(temp_dir, "index.faiss")):
-            # Копируем файлы индекса
-            for file in os.listdir(temp_dir):
-                if file.endswith('.faiss') or file == 'docstore.json':
-                    shutil.copy(
-                        os.path.join(temp_dir, file),
-                        os.path.join(INDEX_PATH, file)
-                    )
-
-            # Сохраняем дату обновления
-            with open(os.path.join(INDEX_PATH, "last_updated.txt"), "w") as f:
-                f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-
-            print(f"Индекс успешно загружен в {INDEX_PATH}")
-            return True
-        else:
-            print(f"Ошибка: файлы индекса не найдены в репозитории")
-            return False
+        print("Индекс успешно скопирован в persistent storage на Render")
+        return True
 
     except Exception as e:
-        print(f"Ошибка при загрузке индекса: {e}")
+        print(f"Ошибка при копировании индекса: {str(e)}")
+        traceback.print_exc()
         return False
-    finally:
-        # Очищаем временную директорию
-        try:
-            shutil.rmtree(temp_dir)
-        except Exception as cleanup_error:
-            print(f"Ошибка при очистке временной директории: {cleanup_error}")
 
 
 # Загружаем векторное хранилище
@@ -127,13 +106,16 @@ def load_vectorstore():
     index_file = os.path.join(INDEX_PATH, "index.faiss")
 
     if not os.path.exists(index_file):
-        print("Индекс не найден. Попытка загрузки из GitHub...")
-        try:
-            download_index_from_github()
-        except Exception as e:
-            print("Ошибка при загрузке индекса из GitHub:", e)
-            traceback.print_exc()
-            raise RuntimeError("Индекс не загружен. Причина: ошибка при загрузке с GitHub.")
+        print("Индекс не найден в persistent storage.")
+
+        # Проверяем наличие локального индекса и копируем его, если есть
+        local_index_file = os.path.join(LOCAL_INDEX_PATH, "index.faiss")
+        if os.path.exists(local_index_file):
+            print("Найден локальный индекс. Копирование в persistent storage...")
+            if not copy_index_to_render_storage():
+                raise RuntimeError("Не удалось скопировать локальный индекс в persistent storage.")
+        else:
+            raise RuntimeError("Индекс не найден ни в persistent storage, ни в локальной директории.")
 
     try:
         print("Попытка загрузки индекса из:", INDEX_PATH)
@@ -144,6 +126,7 @@ def load_vectorstore():
         print("Ошибка при загрузке индекса:", e)
         traceback.print_exc()
         raise RuntimeError("Индекс найден, но не удалось загрузить. Подробности выше.")
+
 
 # Очистка старых сессий
 def clean_old_sessions():
@@ -167,12 +150,15 @@ async def startup_event():
     print("Запуск приложения...")
     os.makedirs(INDEX_PATH, exist_ok=True)
 
-    # Принудительно загружаем индекс при каждом запуске
-    print("Принудительная загрузка индекса из GitHub...")
-    download_index_from_github(force=True)
+    # Проверяем наличие локального индекса и копируем его при запуске, если есть
+    local_index_file = os.path.join(LOCAL_INDEX_PATH, "index.faiss")
+    if os.path.exists(local_index_file):
+        print("Найден локальный индекс. Копирование в persistent storage при запуске...")
+        copy_index_to_render_storage()
+    else:
+        print("Локальный индекс не найден. Используем существующий в persistent storage, если есть.")
 
     print("Приложение запущено и готово к работе!")
-
 
 
 # Эндпоинты
@@ -182,9 +168,9 @@ def ping():
     return {"status": "ok", "message": "Сервер работает"}
 
 
-@app.post("/rebuild")
-async def rebuild_index(admin_token: str = Header(None)):
-    """Обновление индекса из GitHub"""
+@app.post("/update-index")
+async def update_index(admin_token: str = Header(None)):
+    """Копирует индекс из локальной директории проекта в persistent storage на Render"""
     # Проверка пароля администратора
     admin_password = os.getenv("ADMIN_PASSWORD")
     if not admin_password:
@@ -200,23 +186,23 @@ async def rebuild_index(admin_token: str = Header(None)):
             "message": "Доступ запрещен: неверный пароль администратора"
         }, status_code=403)
 
-    # Принудительное обновление индекса
+    # Копирование индекса
     try:
-        print("Запрос на обновление индекса от администратора...")
-        success = download_index_from_github(force=True)
+        print("Запрос на копирование индекса из локального проекта в persistent storage...")
+        success = copy_index_to_render_storage()
 
         if success:
             return JSONResponse({
                 "status": "success",
-                "message": "Индекс успешно обновлен из GitHub"
+                "message": "Индекс успешно скопирован в persistent storage"
             })
         else:
             return JSONResponse({
                 "status": "error",
-                "message": "Не удалось обновить индекс из GitHub"
+                "message": "Не удалось скопировать индекс в persistent storage"
             }, status_code=500)
     except Exception as e:
-        error_msg = f"Ошибка при обновлении индекса: {str(e)}"
+        error_msg = f"Ошибка при копировании индекса: {str(e)}"
         print(error_msg)
         return JSONResponse({
             "status": "error",
@@ -436,20 +422,56 @@ async def ask(q: str = Form(...), session_id: str = Cookie(None), response: Resp
             "sources": ""
         }, status_code=500)
 
+
 @app.get("/last-updated")
 def get_last_updated():
     """Возвращает информацию о последнем обновлении индекса"""
     last_updated_file = os.path.join(INDEX_PATH, "last_updated.txt")
+    copied_at_file = os.path.join(INDEX_PATH, "copied_at.txt")
 
+    result = {}
+
+    # Проверяем файл с датой последнего обновления
     if os.path.exists(last_updated_file):
         try:
             with open(last_updated_file, "r", encoding="utf-8") as f:
                 last_updated = f.read().strip()
-                return {"status": "success", "last_updated": last_updated}
+                result["last_updated"] = last_updated
         except Exception as e:
-            return {"status": "error", "message": f"Ошибка чтения файла: {str(e)}"}
+            result["error_last_updated"] = f"Ошибка чтения файла: {str(e)}"
+
+    # Проверяем файл с датой последнего копирования
+    if os.path.exists(copied_at_file):
+        try:
+            with open(copied_at_file, "r", encoding="utf-8") as f:
+                copied_at = f.read().strip()
+                result["copied_at"] = copied_at
+        except Exception as e:
+            result["error_copied_at"] = f"Ошибка чтения файла: {str(e)}"
+
+    # Проверяем наличие локального индекса
+    local_index_file = os.path.join(LOCAL_INDEX_PATH, "index.faiss")
+    if os.path.exists(local_index_file):
+        result["local_index_exists"] = True
+        try:
+            local_metadata_file = os.path.join(LOCAL_INDEX_PATH, "index_metadata.json")
+            if os.path.exists(local_metadata_file):
+                with open(local_metadata_file, "r", encoding="utf-8") as f:
+                    local_metadata = json.load(f)
+                    result["local_index_info"] = local_metadata
+        except Exception as e:
+            result["local_index_error"] = f"Ошибка чтения метаданных: {str(e)}"
     else:
-        return {"status": "info", "message": "Информация о последнем обновлении отсутствует"}
+        result["local_index_exists"] = False
+
+    # Если информации нет вообще
+    if not result:
+        result["status"] = "info"
+        result["message"] = "Информация о индексе отсутствует"
+    else:
+        result["status"] = "success"
+
+    return result
 
 
 # Запуск сервера

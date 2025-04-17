@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """
-Скрипт для локальной индексации документов и загрузки результатов на GitHub.
-Этот скрипт нужно запускать на локальной машине с достаточными ресурсами.
+Скрипт для локальной индексации документов и сохранения индекса внутри проекта.
 
 Использование:
-    python build_index_local.py [--docs-repo URL] [--index-repo URL] [--openai-api-key KEY] [--github-token TOKEN]
+    python build_index_local.py [--docs-repo URL] [--openai-api-key KEY] [--max-docs NUM]
 
 По умолчанию скрипт:
 1. Клонирует репозиторий с документами
 2. Обрабатывает все документы и создает FAISS индекс
-3. Загружает готовый индекс в репозиторий
+3. Сохраняет готовый индекс в локальную директорию ./index внутри проекта
 """
 
 import os
@@ -42,24 +41,19 @@ except ImportError as e:
 # Загрузка переменных окружения из .env файла, если он существует
 load_dotenv()
 
-# Константы по умолчанию
+# Константы
 DEFAULT_DOCS_REPO = "https://github.com/daureny/rag-chatbot-documents.git"
-DEFAULT_INDEX_REPO = "https://github.com/daureny/rag-chatbot-index.git"
+# Путь для сохранения индекса внутри проекта
+INDEX_DIR = "./index"
 
 
 def parse_arguments():
     """Обработка аргументов командной строки"""
-    parser = argparse.ArgumentParser(description='Локальная индексация документов и загрузка на GitHub.')
+    parser = argparse.ArgumentParser(description='Локальная индексация документов и сохранение внутри проекта.')
     parser.add_argument('--docs-repo', default=DEFAULT_DOCS_REPO,
                         help=f'URL репозитория с документами (по умолчанию: {DEFAULT_DOCS_REPO})')
-    parser.add_argument('--index-repo', default=DEFAULT_INDEX_REPO,
-                        help=f'URL репозитория для сохранения индекса (по умолчанию: {DEFAULT_INDEX_REPO})')
     parser.add_argument('--openai-api-key',
                         help='API ключ OpenAI (по умолчанию берется из переменной OPENAI_API_KEY)')
-    parser.add_argument('--github-token',
-                        help='Токен GitHub для аутентификации (по умолчанию берется из переменной GITHUB_TOKEN)')
-    parser.add_argument('--skip-update', action='store_true',
-                        help='Пропустить обновление репозитория индекса (использовать только для тестирования)')
     parser.add_argument('--max-docs', type=int, default=0,
                         help='Максимальное количество документов для обработки (0 = все документы)')
 
@@ -343,80 +337,6 @@ def save_index_to_directory(index_data, output_dir):
     return True
 
 
-def update_index_repository(index_repo_dir, github_token=None):
-    """Отправляет изменения в GitHub репозиторий с поддержкой аутентификации"""
-    print(f"Отправка индекса в GitHub репозиторий {index_repo_dir}...")
-
-    try:
-        # Настраиваем git для этого репозитория, если указан токен
-        if github_token:
-            # Получаем удаленный URL
-            get_remote_cmd = ["git", "-C", index_repo_dir, "config", "--get", "remote.origin.url"]
-            remote_url = subprocess.check_output(get_remote_cmd).decode().strip()
-
-            # Определяем хост
-            if remote_url.startswith("https://"):
-                repo_host = remote_url.split("//")[1].split("/")[0]
-
-                # Настраиваем credential helper
-                set_git_credentials_cmd = [
-                    "git", "-C", index_repo_dir, "config", "credential.helper",
-                    f"store --file={os.path.join(tempfile.gettempdir(), 'git_credentials')}"
-                ]
-                subprocess.run(set_git_credentials_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-                # Создаем временный файл с учетными данными
-                cred_path = os.path.join(tempfile.gettempdir(), 'git_credentials')
-                with open(cred_path, 'w') as f:
-                    f.write(f"https://{github_token}@{repo_host}\n")
-
-                print(f"Настроены учетные данные для {repo_host}")
-
-        # Настраиваем имя и email для коммита, если не настроены
-        try:
-            subprocess.check_output(["git", "-C", index_repo_dir, "config", "user.name"])
-        except subprocess.CalledProcessError:
-            subprocess.run(
-                ["git", "-C", index_repo_dir, "config", "user.name", "RAG Bot Indexer"],
-                check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
-
-        try:
-            subprocess.check_output(["git", "-C", index_repo_dir, "config", "user.email"])
-        except subprocess.CalledProcessError:
-            subprocess.run(
-                ["git", "-C", index_repo_dir, "config", "user.email", "ragbot@example.com"],
-                check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
-
-        # Добавляем все изменения
-        subprocess.run(
-            ["git", "-C", index_repo_dir, "add", "."],
-            check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-
-        # Создаем коммит
-        commit_message = f"Обновление индекса {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        subprocess.run(
-            ["git", "-C", index_repo_dir, "commit", "-m", commit_message],
-            check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-
-        # Отправляем в GitHub
-        push_cmd = ["git", "-C", index_repo_dir, "push"]
-        result = subprocess.run(push_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        print("Индекс успешно отправлен в GitHub")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"Ошибка при отправке индекса в GitHub: {e}")
-        print(f"stderr: {e.stderr.decode() if e.stderr else 'Нет вывода'}")
-        return False
-    except Exception as e:
-        print(f"Неожиданная ошибка при отправке индекса в GitHub: {e}")
-        return False
-
-
 def main():
     """Основная функция скрипта"""
     # Засекаем время начала выполнения
@@ -429,24 +349,20 @@ def main():
     if args.openai_api_key:
         os.environ["OPENAI_API_KEY"] = args.openai_api_key
 
-    # Получаем токен GitHub из аргументов или переменной окружения
-    github_token = args.github_token or os.environ.get("GITHUB_TOKEN")
-
     # Проверяем наличие API ключа OpenAI
     if not os.environ.get("OPENAI_API_KEY"):
         print("Ошибка: не найден API ключ OpenAI")
         print("Укажите ключ через аргумент --openai-api-key или переменную окружения OPENAI_API_KEY")
         return 1
 
-    # Создаем временные директории
+    # Создаем временную директорию для документов
     temp_docs_dir = os.path.join(tempfile.gettempdir(), "rag_bot_docs")
-    temp_index_dir = os.path.join(tempfile.gettempdir(), "rag_bot_index")
 
-    print(f"Временные директории:")
-    print(f"- Документы: {temp_docs_dir}")
-    print(f"- Индекс: {temp_index_dir}")
+    print(f"Временная директория для документов: {temp_docs_dir}")
+    print(f"Директория для сохранения индекса: {INDEX_DIR}")
 
     # Клонируем репозиторий с документами
+    github_token = os.environ.get("GITHUB_TOKEN")
     if not clone_repository(args.docs_repo, temp_docs_dir, github_token):
         print("Ошибка: не удалось клонировать репозиторий с документами")
         return 1
@@ -465,25 +381,10 @@ def main():
         print("Ошибка: не удалось создать индекс")
         return 1
 
-    # Клонируем репозиторий для индекса, если не указано пропустить обновление
-    if not args.skip_update:
-        if not clone_repository(args.index_repo, temp_index_dir, github_token):
-            print("Ошибка: не удалось клонировать репозиторий для индекса")
-            return 1
-
-    # Сохраняем индекс в директорию
-    if not save_index_to_directory(index_data, temp_index_dir):
+    # Сохраняем индекс в директорию проекта
+    if not save_index_to_directory(index_data, INDEX_DIR):
         print("Ошибка: не удалось сохранить индекс")
         return 1
-
-    # Отправляем изменения в GitHub, если не указано пропустить обновление
-    if not args.skip_update:
-        if not update_index_repository(temp_index_dir, github_token):
-            print("Ошибка: не удалось отправить индекс в GitHub")
-            return 1
-    else:
-        print("Пропуск отправки индекса в GitHub (указан флаг --skip-update)")
-        print(f"Индекс сохранен локально в {temp_index_dir}")
 
     # Вычисляем общее время выполнения
     elapsed_time = time.time() - start_time
@@ -491,9 +392,8 @@ def main():
 
     print(f"\nГотово! Общее время выполнения: {int(minutes)} мин {int(seconds)} сек")
     print(f"Создан индекс из {index_data['document_count']} документов и {index_data['chunk_count']} чанков")
-
-    if not args.skip_update:
-        print(f"Индекс успешно отправлен в GitHub: {args.index_repo}")
+    print(f"Индекс сохранен в директории: {INDEX_DIR}")
+    print("\nДля использования на Render вам нужно вручную скопировать содержимое папки индекса в persistent storage")
 
     return 0
 
