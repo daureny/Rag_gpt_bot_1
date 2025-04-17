@@ -268,18 +268,44 @@ async def ask(q: str = Form(...), session_id: str = Cookie(None), response: Resp
         session_last_activity[session_id] = time.time()
         chat_history = session_memories[session_id]
 
-        # Загружаем индекс
-        vectorstore = load_vectorstore()
-
         # Проверяем API ключ
-        if not os.getenv("OPENAI_API_KEY"):
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        if not openai_api_key:
+            print("ОШИБКА: Ключ API OpenAI не найден в переменных окружения")
             return JSONResponse({
                 "answer": "Ошибка: Не найден ключ API OpenAI. Пожалуйста, проверьте настройки .env файла.",
                 "sources": ""
             }, status_code=500)
 
-        # Настройка LLM
-        llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.2)
+        # Проверка валидности ключа OpenAI
+        try:
+            print("Проверка API ключа OpenAI...")
+            embeddings = OpenAIEmbeddings()
+            # Маленький тест для проверки работоспособности API
+            _ = embeddings.embed_query("тестовый запрос")
+            print("API ключ OpenAI валиден")
+        except Exception as e:
+            error_msg = f"Ошибка API OpenAI: {str(e)}"
+            print(error_msg)
+            traceback.print_exc()
+            return JSONResponse({
+                "answer": f"Извините, возникла проблема с сервисом OpenAI. Пожалуйста, попробуйте позже.",
+                "sources": ""
+            }, status_code=500)
+
+        # Загружаем индекс с дополнительными проверками
+        try:
+            print("Загрузка векторного хранилища...")
+            vectorstore = load_vectorstore()
+            print("Векторное хранилище успешно загружено")
+        except Exception as e:
+            error_msg = f"Ошибка загрузки индекса: {str(e)}"
+            print(error_msg)
+            traceback.print_exc()
+            return JSONResponse({
+                "answer": "Извините, произошла ошибка при доступе к базе знаний. Пожалуйста, попробуйте позже.",
+                "sources": ""
+            }, status_code=500)
 
         # Подготовка контекста из истории диалога
         dialog_context = ""
@@ -292,9 +318,25 @@ async def ask(q: str = Form(...), session_id: str = Cookie(None), response: Resp
         recent_dialogue = " ".join([qa[0] + " " + qa[1] for qa in chat_history[-3:]]) if chat_history else ""
         enhanced_query = f"{recent_dialogue} {q}"
 
-        # Получаем релевантные документы
-        retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 6})
-        relevant_docs = retriever.get_relevant_documents(enhanced_query)
+        # Получаем релевантные документы с обработкой исключений
+        try:
+            print(f"Выполняется поиск по запросу: '{enhanced_query[:50]}...'")
+            retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 6})
+            relevant_docs = retriever.get_relevant_documents(enhanced_query)
+            print(f"Найдено {len(relevant_docs)} релевантных документов")
+
+            # Вывод метаданных первого документа для диагностики
+            if relevant_docs:
+                doc_metadata = relevant_docs[0].metadata
+                print(f"Пример метаданных документа: {doc_metadata}")
+        except Exception as e:
+            error_msg = f"Ошибка при поиске документов: {str(e)}"
+            print(error_msg)
+            traceback.print_exc()
+
+            # Пробуем продолжить без документов
+            relevant_docs = []
+            print("Продолжаем работу без документов...")
 
         # Готовим контекст для LLM
         if len(relevant_docs) == 0:
@@ -303,8 +345,6 @@ async def ask(q: str = Form(...), session_id: str = Cookie(None), response: Resp
             context = ""
             for i, doc in enumerate(relevant_docs):
                 context += f"Документ {i + 1}: {doc.page_content}\n\n"
-
-        print(f"Найдено {len(relevant_docs)} релевантных документов")
 
         # Системный промпт
         system_prompt = """
@@ -337,9 +377,23 @@ async def ask(q: str = Form(...), session_id: str = Cookie(None), response: Resp
         Если вопрос связан с предыдущими вопросами, обязательно учти это в ответе.
         """
 
-        # Запрос к LLM
-        result = llm.invoke(full_prompt)
-        answer = result.content
+        # Запрос к LLM с обработкой исключений
+        try:
+            print("Инициализация модели LLM...")
+            llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.2)
+
+            print("Отправка запроса к LLM...")
+            result = llm.invoke(full_prompt)
+            print("Ответ от LLM получен")
+            answer = result.content
+        except Exception as e:
+            error_msg = f"Ошибка при работе с LLM: {str(e)}"
+            print(error_msg)
+            traceback.print_exc()
+            return JSONResponse({
+                "answer": "Извините, произошла ошибка в сервисе языковой модели. Пожалуйста, попробуйте позже.",
+                "sources": ""
+            }, status_code=500)
 
         # Сохраняем в историю диалога
         session_memories[session_id].append((q, answer))
@@ -363,6 +417,8 @@ async def ask(q: str = Form(...), session_id: str = Cookie(None), response: Resp
     except Exception as e:
         error_message = f"Ошибка при обработке запроса: {str(e)}"
         print(error_message)
+        print(f"Тип ошибки: {type(e).__name__}")
+        traceback.print_exc()  # Выводит полный стек ошибки
 
         # Запись ошибки в лог
         log_dir = "/data"
@@ -372,13 +428,13 @@ async def ask(q: str = Form(...), session_id: str = Cookie(None), response: Resp
         with open(log_file, "a", encoding="utf-8") as log:
             log.write(f"=== Ошибка запроса от {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n")
             log.write(f"Вопрос: {q}\n")
-            log.write(f"Ошибка: {error_message}\n\n")
+            log.write(f"Ошибка: {error_message}\n")
+            log.write(f"Трассировка:\n{traceback.format_exc()}\n\n")
 
         return JSONResponse({
             "answer": f"Извините, произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте позже или обратитесь к администратору.",
             "sources": ""
         }, status_code=500)
-
 
 @app.get("/last-updated")
 def get_last_updated():
