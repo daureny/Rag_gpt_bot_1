@@ -264,7 +264,7 @@ def build_index(docs_dir, max_docs=0):
     import uuid
 
     for doc in texts:
-        doc.metadata["id"] = str(uuid.uuid4())
+        # doc.metadata["id"] = str(uuid.uuid4())
         chunk_store[doc.metadata["id"]] = doc.page_content
 
     # Создаем FAISS индекс
