@@ -51,7 +51,7 @@ static_dir = "."
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Константы
-INDEX_PATH = "/data"  # Постоянный диск на Render - изменен на /data
+INDEX_PATH = "/data"  # Основной диск на Render
 LOCAL_INDEX_PATH = "./index"  # Локальный путь к индексу в проекте
 
 # Хранение сессий
@@ -60,8 +60,47 @@ session_last_activity = {}
 SESSION_MAX_AGE = 86400  # 24 часа
 
 
+# Функция для очистки диска Render при необходимости
+def clear_render_storage(except_files=None):
+    """Очищает директорию индекса на Render, сохраняя указанные файлы"""
+    if except_files is None:
+        except_files = []  # Файлы, которые не нужно удалять
+
+    print(f"Очистка директории {INDEX_PATH}...")
+    try:
+        if not os.path.exists(INDEX_PATH):
+            print(f"Директория {INDEX_PATH} не существует")
+            return True
+
+        # Получаем список всех файлов и директорий
+        items = os.listdir(INDEX_PATH)
+
+        for item in items:
+            # Пропускаем файлы из исключений
+            if item in except_files:
+                print(f"Пропуск файла {item} (в списке исключений)")
+                continue
+
+            path = os.path.join(INDEX_PATH, item)
+            try:
+                if os.path.isdir(path):
+                    shutil.rmtree(path)
+                    print(f"Удалена директория: {item}")
+                else:
+                    os.remove(path)
+                    print(f"Удален файл: {item}")
+            except Exception as e:
+                print(f"Ошибка при удалении {path}: {e}")
+
+        print(f"Директория {INDEX_PATH} успешно очищена")
+        return True
+    except Exception as e:
+        print(f"Ошибка при очистке директории {INDEX_PATH}: {e}")
+        return False
+
+
 # Копирование индекса из локальной директории проекта на Render
-def copy_index_to_render_storage():
+def copy_index_to_render_storage(clear_first=True):
     """Копирует индекс из локального проекта в persistent storage на Render"""
     print(f"Копирование индекса из {LOCAL_INDEX_PATH} в {INDEX_PATH}...")
 
@@ -73,6 +112,15 @@ def copy_index_to_render_storage():
     try:
         # Создаем директорию на Render, если её нет
         os.makedirs(INDEX_PATH, exist_ok=True)
+
+        # Очищаем директорию перед копированием, если запрошено
+        if clear_first:
+            clear_render_storage(except_files=["error.log"])
+
+        # Создаем файл блокировки для предотвращения конфликтов
+        lock_file = os.path.join(INDEX_PATH, "index_building.lock")
+        with open(lock_file, 'w') as f:
+            f.write(f"Index copy started at {datetime.now().isoformat()}")
 
         # Копируем все файлы из локального индекса в Render storage
         for item in os.listdir(LOCAL_INDEX_PATH):
@@ -95,6 +143,10 @@ def copy_index_to_render_storage():
         # Создаем флаг файл, который показывает, что индекс был скопирован
         with open(os.path.join(INDEX_PATH, "index_copied_flag.txt"), "w", encoding="utf-8") as f:
             f.write("Индекс успешно скопирован: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+        # Удаляем файл блокировки
+        if os.path.exists(lock_file):
+            os.remove(lock_file)
 
         print("Индекс успешно скопирован в persistent storage на Render")
         return True
@@ -227,7 +279,7 @@ async def startup_event():
 
     if not index_in_persistent and local_index_exists:
         print("Индекс отсутствует в persistent storage. Копирование локального индекса...")
-        copy_index_to_render_storage()
+        copy_index_to_render_storage(clear_first=True)
     elif index_in_persistent and local_index_exists:
         # Проверяем даты изменения индексов
         local_mtime = os.path.getmtime(local_index_file)
@@ -235,7 +287,7 @@ async def startup_event():
 
         if local_mtime > persistent_mtime:
             print("Локальный индекс новее. Обновление индекса в persistent storage...")
-            copy_index_to_render_storage()
+            copy_index_to_render_storage(clear_first=True)
         else:
             print("Индекс в persistent storage актуален. Копирование не требуется.")
     elif index_in_persistent:
@@ -281,7 +333,7 @@ async def update_index(admin_token: str = Header(None)):
     # Копирование индекса
     try:
         print("Запрос на копирование индекса из локального проекта в persistent storage...")
-        success = copy_index_to_render_storage()
+        success = copy_index_to_render_storage(clear_first=True)
 
         if success:
             return JSONResponse({
@@ -567,42 +619,40 @@ def get_last_updated():
         except Exception as e:
             result["error_last_updated"] = f"Ошибка чтения файла: {str(e)}"
 
-    # Проверяем файл с датой последнего копирования
-    if os.path.exists(copied_at_file):
-        try:
-            with open(copied_at_file, "r", encoding="utf-8") as f:
-                copied_at = f.read().strip()
-                result["copied_at"] = copied_at
-        except Exception as e:
-            result["error_copied_at"] = f"Ошибка чтения файла: {str(e)}"
+            # Проверяем файл с датой последнего копирования
+        if os.path.exists(copied_at_file):
+            try:
+                with open(copied_at_file, "r", encoding="utf-8") as f:
+                    copied_at = f.read().strip()
+                    result["copied_at"] = copied_at
+            except Exception as e:
+                result["error_copied_at"] = f"Ошибка чтения файла: {str(e)}"
 
-    # Проверяем наличие локального индекса
-    local_index_file = os.path.join(LOCAL_INDEX_PATH, "index.faiss")
-    if os.path.exists(local_index_file):
-        result["local_index_exists"] = True
-        try:
-            local_metadata_file = os.path.join(LOCAL_INDEX_PATH, "index_metadata.json")
-            if os.path.exists(local_metadata_file):
-                with open(local_metadata_file, "r", encoding="utf-8") as f:
-                    local_metadata = json.load(f)
-                    result["local_index_info"] = local_metadata
-        except Exception as e:
-            result["local_index_error"] = f"Ошибка чтения метаданных: {str(e)}"
-    else:
-        result["local_index_exists"] = False
+            # Проверяем наличие локального индекса
+        local_index_file = os.path.join(LOCAL_INDEX_PATH, "index.faiss")
+        if os.path.exists(local_index_file):
+            result["local_index_exists"] = True
+            try:
+                local_metadata_file = os.path.join(LOCAL_INDEX_PATH, "index_metadata.json")
+                if os.path.exists(local_metadata_file):
+                    with open(local_metadata_file, "r", encoding="utf-8") as f:
+                        local_metadata = json.load(f)
+                        result["local_index_info"] = local_metadata
+            except Exception as e:
+                result["local_index_error"] = f"Ошибка чтения метаданных: {str(e)}"
+        else:
+            result["local_index_exists"] = False
 
-    # Если информации нет вообще
-    if not result:
-        result["status"] = "info"
-        result["message"] = "Информация о индексе отсутствует"
-    else:
-        result["status"] = "success"
+        # Если информации нет вообще
+        if not result:
+            result["status"] = "info"
+            result["message"] = "Информация о индексе отсутствует"
+        else:
+            result["status"] = "success"
 
-    return result
+        return result
 
-
-# Запуск сервера
+        # Запуск сервера
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8000)
