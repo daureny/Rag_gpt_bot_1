@@ -21,5 +21,3 @@ last_updated.txt
 .DS_Store
 Thumbs.db
 
-# В файле .gitignore
-/index/

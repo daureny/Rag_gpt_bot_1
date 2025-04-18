@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY main.py .
 COPY .env .
 COPY static /app/static
+COPY index /app/index
 COPY start.sh .
 
 # Создание директории для документов, но БЕЗ faiss_index
