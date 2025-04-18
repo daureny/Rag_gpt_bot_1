@@ -14,6 +14,7 @@ import subprocess
 import tempfile
 import json
 import shutil
+import sys
 
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
@@ -50,7 +51,7 @@ static_dir = "."
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Константы
-INDEX_PATH = "/data/faiss_index"  # Постоянный диск на Render
+INDEX_PATH = "/data"  # Постоянный диск на Render - изменен на /data
 LOCAL_INDEX_PATH = "./index"  # Локальный путь к индексу в проекте
 
 # Хранение сессий
@@ -91,6 +92,10 @@ def copy_index_to_render_storage():
         with open(os.path.join(INDEX_PATH, "copied_at.txt"), "w", encoding="utf-8") as f:
             f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
+        # Создаем флаг файл, который показывает, что индекс был скопирован
+        with open(os.path.join(INDEX_PATH, "index_copied_flag.txt"), "w", encoding="utf-8") as f:
+            f.write("Индекс успешно скопирован: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
         print("Индекс успешно скопирован в persistent storage на Render")
         return True
 
@@ -125,7 +130,7 @@ def load_vectorstore():
     except Exception as e:
         print("Ошибка при загрузке индекса:", e)
         traceback.print_exc()
-        raise RuntimeError("Индекс найден, но не удалось загрузить. Подробности выше.")
+        raise RuntimeError(f"Индекс найден, но не удалось загрузить: {str(e)}")
 
 
 # Очистка старых сессий
@@ -144,19 +149,100 @@ def clean_old_sessions():
             del session_last_activity[session_id]
 
 
+# Вспомогательная функция для проверки доступности директории
+def check_directory_access(directory):
+    """Проверяет доступ к директории и выводит информацию о ней"""
+    try:
+        if os.path.exists(directory):
+            print(f"Директория {directory} существует")
+            # Проверяем права
+            readable = os.access(directory, os.R_OK)
+            writable = os.access(directory, os.W_OK)
+            executable = os.access(directory, os.X_OK)
+            print(f"  Права доступа: Чтение={readable}, Запись={writable}, Выполнение={executable}")
+
+            # Проверяем тип
+            is_dir = os.path.isdir(directory)
+            is_link = os.path.islink(directory)
+            print(f"  Тип: Директория={is_dir}, Символическая ссылка={is_link}")
+
+            # Проверяем содержимое
+            if is_dir and readable and executable:
+                try:
+                    items = os.listdir(directory)
+                    print(f"  Содержимое ({len(items)} элементов): {', '.join(items[:5])}" +
+                          ("..." if len(items) > 5 else ""))
+                except Exception as e:
+                    print(f"  Ошибка при чтении содержимого: {str(e)}")
+        else:
+            parent_dir = os.path.dirname(directory)
+            print(f"Директория {directory} не существует")
+            print(f"Родительская директория {parent_dir} " +
+                  ("существует" if os.path.exists(parent_dir) else "не существует"))
+
+            # Пытаемся создать директорию
+            try:
+                os.makedirs(directory, exist_ok=True)
+                print(f"  Создана директория {directory}")
+            except Exception as e:
+                print(f"  Не удалось создать директорию: {str(e)}")
+
+        return True
+    except Exception as e:
+        print(f"Ошибка при проверке директории {directory}: {str(e)}")
+        return False
+
+
 # События приложения
 @app.on_event("startup")
 async def startup_event():
     print("Запуск приложения...")
-    os.makedirs(INDEX_PATH, exist_ok=True)
+    print(f"Текущая рабочая директория: {os.getcwd()}")
 
-    # Проверяем наличие локального индекса и копируем его при запуске, если есть
+    # Проверяем параметры системы
+    print(f"Платформа: {sys.platform}")
+    print(f"Версия Python: {sys.version}")
+    print("Переменные окружения:")
+    for env_var in ['RENDER', 'PATH', 'HOME']:
+        print(f"  {env_var}={os.environ.get(env_var, 'Не задано')}")
+
+    # Проверка доступности директорий
+    print("\nПроверка директорий:")
+    check_directory_access(INDEX_PATH)
+    check_directory_access(LOCAL_INDEX_PATH)
+
+    # Проверяем наличие индекса в persistent storage
+    index_in_persistent = os.path.exists(os.path.join(INDEX_PATH, "index.faiss"))
+    print(f"\nИндекс в persistent storage: {'Найден' if index_in_persistent else 'Не найден'}")
+
+    # Проверяем наличие локального индекса
     local_index_file = os.path.join(LOCAL_INDEX_PATH, "index.faiss")
-    if os.path.exists(local_index_file):
-        print("Найден локальный индекс. Копирование в persistent storage при запуске...")
+    local_index_exists = os.path.exists(local_index_file)
+    print(f"Локальный индекс: {'Найден' if local_index_exists else 'Не найден'}")
+
+    # Стратегия копирования:
+    # 1. Если индекса нет в persistent storage, но есть локально - копируем
+    # 2. Если индекс есть в persistent storage, но есть более новый локальный - копируем
+    # 3. Иначе используем существующий в persistent storage
+
+    if not index_in_persistent and local_index_exists:
+        print("Индекс отсутствует в persistent storage. Копирование локального индекса...")
         copy_index_to_render_storage()
+    elif index_in_persistent and local_index_exists:
+        # Проверяем даты изменения индексов
+        local_mtime = os.path.getmtime(local_index_file)
+        persistent_mtime = os.path.getmtime(os.path.join(INDEX_PATH, "index.faiss"))
+
+        if local_mtime > persistent_mtime:
+            print("Локальный индекс новее. Обновление индекса в persistent storage...")
+            copy_index_to_render_storage()
+        else:
+            print("Индекс в persistent storage актуален. Копирование не требуется.")
+    elif index_in_persistent:
+        print("Используем существующий индекс в persistent storage.")
     else:
-        print("Локальный индекс не найден. Используем существующий в persistent storage, если есть.")
+        print("ВНИМАНИЕ: Индекс не найден ни в persistent storage, ни локально!")
+        print("Приложение может работать некорректно без индекса.")
 
     print("Приложение запущено и готово к работе!")
 
@@ -165,7 +251,13 @@ async def startup_event():
 @app.get("/ping")
 def ping():
     """Проверка работы сервера"""
-    return {"status": "ok", "message": "Сервер работает"}
+    # Добавляем информацию о состоянии индекса
+    index_exists = os.path.exists(os.path.join(INDEX_PATH, "index.faiss"))
+    return {
+        "status": "ok",
+        "message": "Сервер работает",
+        "index_status": "Индекс найден" if index_exists else "Индекс не найден"
+    }
 
 
 @app.post("/update-index")
@@ -218,6 +310,41 @@ def clear_session(session_id: str = Cookie(None), response: Response = None):
         return {"status": "success", "message": "История диалога очищена"}
     else:
         return {"status": "error", "message": "Сессия не найдена"}
+
+
+@app.get("/index-info")
+def get_index_info():
+    """Возвращает информацию об индексе"""
+    try:
+        result = {
+            "status": "success",
+            "index_location": INDEX_PATH,
+            "index_exists": os.path.exists(os.path.join(INDEX_PATH, "index.faiss")),
+            "local_index_exists": os.path.exists(os.path.join(LOCAL_INDEX_PATH, "index.faiss")),
+        }
+
+        # Добавляем информацию о метаданных, если они есть
+        metadata_path = os.path.join(INDEX_PATH, "index_metadata.json")
+        if os.path.exists(metadata_path):
+            try:
+                with open(metadata_path, 'r', encoding='utf-8') as f:
+                    metadata = json.load(f)
+                    result["metadata"] = metadata
+            except Exception as e:
+                result["metadata_error"] = str(e)
+
+        # Проверяем наличие файла с датой копирования
+        copied_at_path = os.path.join(INDEX_PATH, "copied_at.txt")
+        if os.path.exists(copied_at_path):
+            try:
+                with open(copied_at_path, 'r', encoding='utf-8') as f:
+                    result["copied_at"] = f.read().strip()
+            except Exception as e:
+                result["copied_at_error"] = str(e)
+
+        return result
+    except Exception as e:
+        return {"status": "error", "message": f"Ошибка при получении информации об индексе: {str(e)}"}
 
 
 @app.post("/ask")

@@ -3,10 +3,10 @@
 Скрипт для локальной индексации документов и сохранения индекса внутри проекта.
 
 Использование:
-    python build_index_local.py [--docs-repo URL] [--openai-api-key KEY] [--max-docs NUM]
+    python build_index_local.py [--docs-dir DIR] [--openai-api-key KEY] [--max-docs NUM] [--direct-copy]
 
 По умолчанию скрипт:
-1. Клонирует репозиторий с документами
+1. Использует документы из директории ./docs внутри проекта
 2. Обрабатывает все документы и создает FAISS индекс
 3. Сохраняет готовый индекс в локальную директорию ./index внутри проекта
 """
@@ -18,7 +18,6 @@ import json
 import shutil
 import tempfile
 import argparse
-import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -42,84 +41,24 @@ except ImportError as e:
 load_dotenv()
 
 # Константы
-DEFAULT_DOCS_REPO = "https://github.com/daureny/rag-chatbot-documents.git"
-# Путь для сохранения индекса внутри проекта
-INDEX_DIR = "./index"
+DEFAULT_DOCS_DIR = "./docs"  # Директория с документами внутри проекта
+INDEX_DIR = "./index"  # Путь для сохранения индекса внутри проекта
+RENDER_INDEX_DIR = "/data"  # Путь к директории Render для возможности прямого копирования
 
 
 def parse_arguments():
     """Обработка аргументов командной строки"""
     parser = argparse.ArgumentParser(description='Локальная индексация документов и сохранение внутри проекта.')
-    parser.add_argument('--docs-repo', default=DEFAULT_DOCS_REPO,
-                        help=f'URL репозитория с документами (по умолчанию: {DEFAULT_DOCS_REPO})')
+    parser.add_argument('--docs-dir', default=DEFAULT_DOCS_DIR,
+                        help=f'Директория с документами (по умолчанию: {DEFAULT_DOCS_DIR})')
     parser.add_argument('--openai-api-key',
                         help='API ключ OpenAI (по умолчанию берется из переменной OPENAI_API_KEY)')
     parser.add_argument('--max-docs', type=int, default=0,
                         help='Максимальное количество документов для обработки (0 = все документы)')
+    parser.add_argument('--direct-copy', action='store_true',
+                        help='Копировать индекс напрямую в директорию Render (для запуска на Render)')
 
     return parser.parse_args()
-
-
-def clone_repository(repo_url, target_dir, github_token=None):
-    """Клонирует репозиторий из GitHub с поддержкой аутентификации"""
-    print(f"Клонирование репозитория {repo_url} в {target_dir}...")
-
-    # Если указан токен, добавляем его в URL
-    if github_token:
-        # Проверяем формат URL (https:// или git@)
-        if repo_url.startswith("https://"):
-            # Для HTTPS URL добавляем токен в формате https://token@github.com/...
-            repo_parts = repo_url.split("//")
-            auth_url = f"{repo_parts[0]}//{github_token}@{repo_parts[1]}"
-            print("Используется HTTPS аутентификация с токеном GitHub")
-        else:
-            # Для SSH URL не нужно модифицировать
-            auth_url = repo_url
-            print("Используется SSH URL, токен не требуется")
-    else:
-        auth_url = repo_url
-
-    try:
-        # Проверяем, существует ли директория
-        if os.path.exists(target_dir):
-            print(f"Директория {target_dir} уже существует, выполняется git pull...")
-            # Если директория существует, обновляем репозиторий
-            if github_token:
-                # Сначала настраиваем credentials для этого репозитория
-                set_git_credentials_cmd = [
-                    "git", "-C", target_dir, "config", "credential.helper",
-                    f"store --file={os.path.join(tempfile.gettempdir(), 'git_credentials')}"
-                ]
-                subprocess.run(set_git_credentials_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-                # Создаем временный файл с учетными данными
-                cred_path = os.path.join(tempfile.gettempdir(), 'git_credentials')
-                repo_host = auth_url.split("@")[1].split("/")[0] if "@" in auth_url else \
-                auth_url.split("//")[1].split("/")[0]
-                with open(cred_path, 'w') as f:
-                    f.write(f"https://{github_token}@{repo_host}\n")
-
-            # Затем делаем pull
-            subprocess.run(
-                ["git", "-C", target_dir, "pull"],
-                check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
-        else:
-            # Если директории нет, клонируем репозиторий
-            subprocess.run(
-                ["git", "clone", auth_url, target_dir],
-                check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
-
-        print(f"Репозиторий {repo_url} успешно клонирован/обновлен")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"Ошибка при клонировании репозитория: {e}")
-        print(f"stderr: {e.stderr.decode() if e.stderr else 'Нет вывода'}")
-        return False
-    except Exception as e:
-        print(f"Неожиданная ошибка при клонировании репозитория: {e}")
-        return False
 
 
 def extract_title(text, filename):
@@ -156,7 +95,14 @@ def build_index(docs_dir, max_docs=0):
     # Проверяем наличие директории с документами
     if not os.path.exists(docs_dir):
         print(f"Ошибка: директория {docs_dir} не существует")
-        return None
+        print(f"Создаю пустую директорию {docs_dir} для размещения документов...")
+        try:
+            os.makedirs(docs_dir, exist_ok=True)
+            print(f"Директория {docs_dir} создана. Пожалуйста, разместите в ней документы и запустите скрипт снова.")
+            return None
+        except Exception as e:
+            print(f"Ошибка при создании директории {docs_dir}: {e}")
+            return None
 
     # Определяем путь к документам
     docs_path = Path(docs_dir)
@@ -183,7 +129,8 @@ def build_index(docs_dir, max_docs=0):
 
     # Если нет файлов для обработки, выходим
     if not files_to_process:
-        print("Нет файлов для индексации")
+        print(f"Нет файлов для индексации в директории {docs_dir}")
+        print("Пожалуйста, добавьте документы в форматах PDF, DOCX, TXT или HTML и запустите скрипт снова.")
         return None
 
     # Создаем векторайзер для эмбеддингов
@@ -252,14 +199,6 @@ def build_index(docs_dir, max_docs=0):
 
     texts = splitter.split_documents(all_docs)
     print(f"Создано {len(texts)} чанков")
-
-    # Добавляем ID для каждого чанка и сохраняем их в словаре
-    print("Добавляем идентификаторы к чанкам...")
-    import uuid
-
-    # for doc in texts:
-    #     # doc.metadata["id"] = str(uuid.uuid4())
-    #     chunk_store[doc.metadata["id"]] = doc.page_content
 
     # Создаем FAISS индекс
     print("Создаем FAISS индекс...")
@@ -337,6 +276,55 @@ def save_index_to_directory(index_data, output_dir):
     return True
 
 
+def copy_index_to_render(local_index_dir, render_index_dir):
+    """Копирует индекс из локальной директории в директорию Render"""
+    print(f"Копирование индекса из {local_index_dir} в {render_index_dir}...")
+
+    # Проверяем доступность директории Render
+    if not os.path.exists(render_index_dir):
+        try:
+            os.makedirs(render_index_dir, exist_ok=True)
+            print(f"Создана директория {render_index_dir} для хранения индекса")
+        except Exception as e:
+            print(f"Ошибка при создании директории {render_index_dir}: {e}")
+            print("Вероятно, скрипт запущен не на сервере Render или без необходимых прав")
+            return False
+
+    try:
+        # Проверяем наличие индекса
+        if not os.path.exists(os.path.join(local_index_dir, "index.faiss")):
+            print(f"Ошибка: Индекс не найден в {local_index_dir}")
+            return False
+
+        # Копируем все файлы
+        for item in os.listdir(local_index_dir):
+            source = os.path.join(local_index_dir, item)
+            destination = os.path.join(render_index_dir, item)
+
+            if os.path.isfile(source):
+                shutil.copy2(source, destination)
+                print(f"Скопирован файл: {item}")
+            elif os.path.isdir(source):
+                if os.path.exists(destination):
+                    shutil.rmtree(destination)
+                shutil.copytree(source, destination)
+                print(f"Скопирована директория: {item}")
+
+        # Создаем дополнительные служебные файлы
+        with open(os.path.join(render_index_dir, "copied_at.txt"), "w", encoding="utf-8") as f:
+            f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+        with open(os.path.join(render_index_dir, "index_copied_flag.txt"), "w", encoding="utf-8") as f:
+            f.write(f"Индекс скопирован из локальной директории в {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+        print(f"Индекс успешно скопирован в {render_index_dir}")
+        return True
+
+    except Exception as e:
+        print(f"Ошибка при копировании индекса в {render_index_dir}: {e}")
+        return False
+
+
 def main():
     """Основная функция скрипта"""
     # Засекаем время начала выполнения
@@ -355,36 +343,44 @@ def main():
         print("Укажите ключ через аргумент --openai-api-key или переменную окружения OPENAI_API_KEY")
         return 1
 
-    # Создаем временную директорию для документов
-    temp_docs_dir = os.path.join(tempfile.gettempdir(), "rag_bot_docs")
-
-    print(f"Временная директория для документов: {temp_docs_dir}")
+    print(f"Директория с документами: {args.docs_dir}")
     print(f"Директория для сохранения индекса: {INDEX_DIR}")
 
-    # Клонируем репозиторий с документами
-    github_token = os.environ.get("GITHUB_TOKEN")
-    if not clone_repository(args.docs_repo, temp_docs_dir, github_token):
-        print("Ошибка: не удалось клонировать репозиторий с документами")
-        return 1
+    # Проверяем запущен ли скрипт на Render
+    is_render = os.environ.get("RENDER") == "true"
+    print(f"Запуск на Render: {'Да' if is_render else 'Нет'}")
 
-    # Если в репозитории есть поддиректория docs, используем её
-    docs_subdir = os.path.join(temp_docs_dir, "docs")
-    if os.path.exists(docs_subdir) and os.path.isdir(docs_subdir):
-        print(f"Найдена поддиректория docs, используем её")
-        docs_dir = docs_subdir
+    # Обнаружение среды запуска для определения стратегии сохранения
+    if args.direct_copy or is_render:
+        print(f"Режим прямого копирования. Индекс будет сохранен в {RENDER_INDEX_DIR}")
     else:
-        docs_dir = temp_docs_dir
+        print(f"Стандартный режим. Индекс будет сохранен в локальную директорию {INDEX_DIR}")
 
-    # Строим индекс
-    index_data = build_index(docs_dir, args.max_docs)
+    # Строим индекс из локальной директории документов
+    index_data = build_index(args.docs_dir, args.max_docs)
     if not index_data:
         print("Ошибка: не удалось создать индекс")
         return 1
 
-    # Сохраняем индекс в директорию проекта
+    # Сохраняем индекс в локальную директорию проекта
     if not save_index_to_directory(index_data, INDEX_DIR):
         print("Ошибка: не удалось сохранить индекс")
         return 1
+
+    # Если запущен в режиме прямого копирования или на Render,
+    # дополнительно копируем индекс в директорию Render
+    if args.direct_copy or is_render:
+        if os.path.exists(RENDER_INDEX_DIR) or args.direct_copy:
+            print("Копирование индекса в директорию Render...")
+            if copy_index_to_render(INDEX_DIR, RENDER_INDEX_DIR):
+                print(f"Индекс успешно скопирован в {RENDER_INDEX_DIR}")
+            else:
+                print(f"Не удалось скопировать индекс в {RENDER_INDEX_DIR}")
+                print("Индекс сохранен только в локальной директории проекта.")
+                print("Вы можете скопировать его в persistent storage вручную или через API.")
+        else:
+            print(f"Директория {RENDER_INDEX_DIR} не найдена. Копирование на Render пропущено.")
+            print("Индекс сохранен только в локальной директории проекта.")
 
     # Вычисляем общее время выполнения
     elapsed_time = time.time() - start_time
@@ -393,7 +389,14 @@ def main():
     print(f"\nГотово! Общее время выполнения: {int(minutes)} мин {int(seconds)} сек")
     print(f"Создан индекс из {index_data['document_count']} документов и {index_data['chunk_count']} чанков")
     print(f"Индекс сохранен в директории: {INDEX_DIR}")
-    print("\nДля использования на Render вам нужно вручную скопировать содержимое папки индекса в persistent storage")
+
+    if args.direct_copy or is_render:
+        print(f"Индекс также скопирован в директорию Render: {RENDER_INDEX_DIR}")
+    else:
+        print("\nДля копирования индекса на Render вы можете:")
+        print("1. Запустить этот скрипт с флагом --direct-copy на сервере Render")
+        print("2. Использовать API эндпоинт /update-index с соответствующим токеном")
+        print("3. Вручную скопировать содержимое папки индекса в persistent storage")
 
     return 0
 
