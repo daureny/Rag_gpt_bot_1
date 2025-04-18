@@ -23,8 +23,8 @@ COPY .env .
 COPY static /app/static
 COPY start.sh .
 
-# Создание директории для документов
-RUN mkdir -p docs faiss_index
+# Создание директории для документов, но БЕЗ faiss_index
+RUN mkdir -p docs
 RUN touch last_updated.txt rebuild_log.txt
 
 # Сделать скрипт запуска исполняемым
